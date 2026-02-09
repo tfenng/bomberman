@@ -58,6 +58,7 @@ class GameScene(BaseScene):
         self.victory = False
         self.exit_open = False
         self.exit_hint_timer = 0.0  # 出口提示显示时间
+        self._end_sound_played = False  # 防止重复播放结束音效
 
     def enter(self):
         """进入游戏场景"""
@@ -99,6 +100,7 @@ class GameScene(BaseScene):
         self.time_elapsed = 0.0
         self.game_over = False
         self.victory = False
+        self._end_sound_played = False
 
     def handle_event(self, event: pygame.event.Event):
         """处理游戏事件"""
@@ -222,6 +224,10 @@ class GameScene(BaseScene):
         # 检查玩家是否被炸死
         if was_alive and not self.player.alive:
             self.game_over = True
+            if not self._end_sound_played:
+                self._end_sound_played = True
+                from assets import assets
+                assets.play_sound("game_over")
 
     def _update_enemies(self, dt: float):
         """更新敌人状态"""
@@ -255,6 +261,13 @@ class GameScene(BaseScene):
             if enemy.alive and enemy.check_player_collision(self.player):
                 self.player.die()
                 self.game_over = True
+                # 播放碰撞音效
+                from assets import assets
+                assets.play_sound("enemy_hit")
+                # 播放游戏结束音效
+                if not self._end_sound_played:
+                    self._end_sound_played = True
+                    assets.play_sound("game_over")
                 break
 
     def _check_victory_condition(self):
@@ -273,6 +286,8 @@ class GameScene(BaseScene):
                 if all_enemies_dead:
                     self.player.victory()
                     self.victory = True
+                    from assets import assets
+                    assets.play_sound("victory")
                 else:
                     # 玩家到达出口但还有敌人，显示提示
                     alive_enemies = sum(1 for e in self.enemies if e.alive)
@@ -307,12 +322,13 @@ class GameScene(BaseScene):
         # 绘制UI
         self._draw_ui(surface)
 
-        # 绘制出口提示
+        # 绘制出口提示（顶部显示，不遮挡游戏视野）
         if self.exit_hint_timer > 0 and not self.victory:
             alive_enemies = sum(1 for e in self.enemies if e.alive)
             hint_text = f"还需消灭 {alive_enemies} 个敌人!"
             text = self.warning_font.render(hint_text, True, (255, 100, 100))
-            text_rect = text.get_rect(center=(surface.get_width() // 2, surface.get_height() - 100))
+            # 提示显示在顶部栏下方，不遮挡游戏区域
+            text_rect = text.get_rect(center=(surface.get_width() // 2, 80))
             # 添加文字背景
             bg_rect = text_rect.inflate(20, 10)
             pygame.draw.rect(surface, (0, 0, 0, 180), bg_rect)

@@ -238,6 +238,8 @@ class BombManager:
                             center_y=bomb.grid_y,
                             power=bomb.power
                         )
+                        # 播放爆炸音效
+                        assets.play_sound("explosion")
                     bombs_to_remove.append(bomb)
                     exploded_bombs.append(bomb)
 

@@ -134,6 +134,9 @@ class Player:
             self.placed_bombs += 1
             self.collision.grid.add_bomb(self.grid_x, self.grid_y)
             self._bomb_cooldown.use()
+            # 播放放置炸弹音效
+            from assets import assets
+            assets.play_sound("place_bomb")
             return True
         return False
 
@@ -274,6 +277,9 @@ class Player:
         powerup = powerup_manager.get_powerup_at(self.grid_x, self.grid_y)
         if powerup:
             powerup_manager.add_effect(powerup)
+            # 播放拾取音效
+            from assets import assets
+            assets.play_sound("pickup")
 
     def die(self):
         """玩家死亡"""

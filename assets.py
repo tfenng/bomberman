@@ -177,6 +177,15 @@ class AssetManager:
         self.load_image("wall_soft", "images/wall_soft.png", (48, 48))
         self.load_image("exit", "images/exit.png", (48, 48))
 
+        # 预加载音效
+        self.load_sound("enemy_hit", "sounds/enemy_hit.wav")
+        self.load_sound("explosion", "sounds/boom.wav")
+        self.load_sound("place_bomb", "sounds/place_bomb.wav")
+        self.load_sound("pickup", "sounds/pickup.wav")
+        self.load_sound("enemy_die", "sounds/enemy_die.wav")
+        self.load_sound("victory", "sounds/victory.wav")
+        self.load_sound("game_over", "sounds/game_over.wav")
+
         # 预加载关卡
         self.load_level()
 

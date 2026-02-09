@@ -36,7 +36,7 @@ class Enemy:
         enemy_type: str,
         grid_x: int,
         grid_y: int,
-        speed: float = 1.5,
+        speed: float = 100.0,
         collision_system: Optional[CollisionSystem] = None
     ):
         self.type = enemy_type
@@ -55,7 +55,7 @@ class Enemy:
 
         # 大小
         self.size = ENEMY_SIZE
-        self.radius = ENEMY_SIZE // 2
+        self.radius = ENEMY_SIZE // 2 - 6  # 进一步减小碰撞半径，避免粘墙
 
         # 碰撞系统
         self.collision = collision_system
@@ -154,11 +154,15 @@ class Enemy:
         if not self.collision:
             return
 
-        # 计算实际速度
-        actual_speed = self.speed * dt
-        move_vector = self.direction * actual_speed
+        # 持续尝试移动，直到成功或尝试完所有方向
+        max_attempts = 4
+        for attempt in range(max_attempts):
+            actual_speed = self.speed * dt
+            move_vector = self.direction * actual_speed
 
-        if move_vector.length() > 0:
+            if move_vector.length() == 0:
+                break
+
             move_vector = move_vector.normalize() * actual_speed
 
             # 解决碰撞
@@ -168,14 +172,27 @@ class Enemy:
                 self.radius
             )
 
-            self.position.x = new_x
-            self.position.y = new_y
+            # 检查是否成功移动（目标位置和当前位置不同）
+            moved_dist = ((new_x - self.position.x) ** 2 + (new_y - self.position.y) ** 2) ** 0.5
 
-            # 更新网格位置
-            new_grid_x, new_grid_y = self.collision.pixel_to_tile(self.position.x, self.position.y)
-            if grid.is_valid_grid(new_grid_x, new_grid_y):
-                self.grid_x = new_grid_x
-                self.grid_y = new_grid_y
+            if moved_dist > actual_speed * 0.5:
+                # 成功移动
+                self.position.x = new_x
+                self.position.y = new_y
+                # 更新网格位置
+                new_grid_x, new_grid_y = self.collision.pixel_to_tile(self.position.x, self.position.y)
+                if grid.is_valid_grid(new_grid_x, new_grid_y):
+                    self.grid_x = new_grid_x
+                    self.grid_y = new_grid_y
+                break
+            else:
+                # 移动失败，尝试新方向
+                new_dir = self._get_random_direction(grid)
+                if new_dir.length() > 0:
+                    self.direction = new_dir
+                # 如果尝试完所有方向还是不行，就停下来
+                if attempt == max_attempts - 1:
+                    break
 
     def _check_explosion_collision(self, explosion_manager: ExplosionManager):
         """检查与爆炸的碰撞"""
@@ -190,6 +207,9 @@ class Enemy:
             self.position.x, self.position.y, self.radius * 0.8, offset_x, offset_y
         ):
             self.die()
+            # 播放敌人死亡音效
+            from assets import assets
+            assets.play_sound("enemy_die")
 
     def check_player_collision(self, player: Player) -> bool:
         """检查与玩家的碰撞"""
@@ -288,25 +308,12 @@ class BasicEnemy(Enemy):
             speed,
             collision_system
         )
-        self.stuck_counter = 0
-        self.last_grid_pos = (grid_x, grid_y)
 
     def _get_movement_direction(self, grid: Grid, player: Optional[Player]) -> Vector2:
         """获取随机移动方向"""
-        # 检查是否卡住
-        if (self.grid_x, self.grid_y) == self.last_grid_pos:
-            self.stuck_counter += 1
-        else:
-            self.stuck_counter = 0
-            self.last_grid_pos = (self.grid_x, self.grid_y)
-
-        # 如果卡住太长时间，选择新方向
-        if self.stuck_counter > 3:
-            self.stuck_counter = 0
-            return self._get_random_direction(grid)
-
         # 定期改变方向
-        if self.move_timer >= self.move_interval:
+        self.move_timer += 0.016  # 约60fps
+        if self.move_timer >= 0.5:
             self.move_timer = 0
             return self._get_random_direction(grid)
 
@@ -316,16 +323,27 @@ class BasicEnemy(Enemy):
         """获取随机可用方向"""
         directions = [Vector2(0, -1), Vector2(0, 1), Vector2(-1, 0), Vector2(1, 0)]
 
+        # 优先尝试当前方向（保持移动惯性）
+        if self.direction.length() > 0:
+            test_x = self.grid_x + int(self.direction.x)
+            test_y = self.grid_y + int(self.direction.y)
+            if grid.is_valid_grid(test_x, test_y) and grid.is_empty(test_x, test_y) and not grid.has_bomb(test_x, test_y):
+                return self.direction
+
+        # 随机打乱方向，增加随机性
+        import random
+        random.shuffle(directions)
+
         # 尝试找到可用的方向
         for direction in directions:
             test_x = self.grid_x + int(direction.x)
             test_y = self.grid_y + int(direction.y)
 
-            if grid.is_empty(test_x, test_y) and not grid.has_bomb(test_x, test_y):
+            if grid.is_valid_grid(test_x, test_y) and grid.is_empty(test_x, test_y) and not grid.has_bomb(test_x, test_y):
                 return direction
 
         # 如果所有方向都不可用，保持原方向
-        return Vector2(0, 0)
+        return self.direction if self.direction.length() > 0 else Vector2(0, 0)
 
 
 class ChaseEnemy(Enemy):
@@ -335,7 +353,7 @@ class ChaseEnemy(Enemy):
         self,
         grid_x: int,
         grid_y: int,
-        speed: float = 1.2,
+        speed: float = 110.0,
         chase_range: int = 5,
         collision_system: Optional[CollisionSystem] = None
     ):
@@ -375,38 +393,44 @@ class ChaseEnemy(Enemy):
 
     def _calculate_path_direction(self, grid: Grid, player: Player) -> Vector2:
         """计算朝向玩家的方向"""
+        # 基于像素位置检查方向是否通畅
+        def is_direction_clear(dir: Vector2) -> bool:
+            check_dist = self.radius + 10
+            test_x = self.position.x + dir.x * check_dist
+            test_y = self.position.y + dir.y * check_dist
+            gx, gy = grid.pixel_to_grid(test_x, test_y)
+            return (grid.is_valid_grid(gx, gy) and
+                    grid.is_empty(gx, gy) and
+                    not grid.has_bomb(gx, gy))
+
         # 简单的方向计算
         dx = player.grid_x - self.grid_x
         dy = player.grid_y - self.grid_y
 
         # 优先移动距离较大的方向
+        directions = []
         if abs(dx) > abs(dy):
             # 优先水平移动
-            test_x = self.grid_x + (1 if dx > 0 else -1)
-            if grid.is_empty(test_x, self.grid_y):
-                return Vector2(1 if dx > 0 else -1, 0)
-            elif dy != 0:
-                # 尝试垂直移动
-                test_y = self.grid_y + (1 if dy > 0 else -1)
-                if grid.is_empty(self.grid_x, test_y):
-                    return Vector2(0, 1 if dy > 0 else -1)
+            if dx != 0:
+                directions.append(Vector2(1 if dx > 0 else -1, 0))
+            if dy != 0:
+                directions.append(Vector2(0, 1 if dy > 0 else -1))
         else:
             # 优先垂直移动
-            test_y = self.grid_y + (1 if dy > 0 else -1)
-            if grid.is_empty(self.grid_x, test_y):
-                return Vector2(0, 1 if dy > 0 else -1)
-            elif dx != 0:
-                # 尝试水平移动
-                test_x = self.grid_x + (1 if dx > 0 else -1)
-                if grid.is_empty(test_x, self.grid_y):
-                    return Vector2(1 if dx > 0 else -1, 0)
+            if dy != 0:
+                directions.append(Vector2(0, 1 if dy > 0 else -1))
+            if dx != 0:
+                directions.append(Vector2(1 if dx > 0 else -1, 0))
 
-        # 如果首选方向被阻挡，尝试其他方向
-        directions = [Vector2(0, -1), Vector2(0, 1), Vector2(-1, 0), Vector2(1, 0)]
+        # 按优先级尝试方向
         for direction in directions:
-            test_x = self.grid_x + int(direction.x)
-            test_y = self.grid_y + int(direction.y)
-            if grid.is_empty(test_x, test_y):
+            if is_direction_clear(direction):
+                return direction
+
+        # 如果首选方向被阻挡，尝试所有可用方向
+        all_dirs = [Vector2(0, -1), Vector2(0, 1), Vector2(-1, 0), Vector2(1, 0)]
+        for direction in all_dirs:
+            if is_direction_clear(direction):
                 return direction
 
         return Vector2(0, 0)
@@ -415,10 +439,18 @@ class ChaseEnemy(Enemy):
         """获取随机可用方向"""
         directions = [Vector2(0, -1), Vector2(0, 1), Vector2(-1, 0), Vector2(1, 0)]
 
+        # 随机打乱方向
+        import random
+        random.shuffle(directions)
+
         for direction in directions:
+            # 检查前方格子是否为空（基于网格坐标）
             test_x = self.grid_x + int(direction.x)
             test_y = self.grid_y + int(direction.y)
-            if grid.is_empty(test_x, test_y):
+            if (grid.is_valid_grid(test_x, test_y) and
+                grid.is_empty(test_x, test_y) and
+                not grid.has_bomb(test_x, test_y)):
                 return direction
 
-        return Vector2(0, 0)
+        # 如果所有方向都被阻挡，保持当前方向（让碰撞解决来处理）
+        return self.direction if self.direction.length() > 0 else directions[0]

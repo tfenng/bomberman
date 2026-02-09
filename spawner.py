@@ -109,37 +109,23 @@ class Spawner:
     ) -> List:
         """从被破坏的软墙生成道具"""
         powerups = []
-        drop_rate = level_data.get("powerup_drop_rate", 0.3)
 
-        # 支持带权重的道具列表，格式: ["type", weight] 或 "type"
-        powerup_types = level_data.get("powerup_types", [
-            PowerupType.BOMB_INCREASE,
-            PowerupType.BOMB_INCREASE,
-            PowerupType.SPEED_INCREASE,
-            PowerupType.SPEED_INCREASE,
-            PowerupType.FIRE_INCREASE
-        ])
-
-        # 火力增强单独的低概率设置
-        fire_rarity = level_data.get("fire_increase_rarity", 0.1)
+        # 使用 powerup_probabilities 配置，各道具独立概率
+        powerup_probs = level_data.get("powerup_probabilities", {
+            "bomb_increase": 0.15,
+            "speed_increase": 0.15,
+            "fire_increase": 0.05,
+            "none": 0.65
+        })
 
         for wall_pos in destroyed_walls:
-            if random.random() < drop_rate:
-                # 如果道具列表包含权重
-                if powerup_types and isinstance(powerup_types[0], list):
-                    # 带权重格式: [["type", weight], ...]
-                    choices = [item[0] for item in powerup_types]
-                    weights = [item[1] for item in powerup_types]
-                    powerup_type = random.choices(choices, weights=weights, k=1)[0]
-                else:
-                    powerup_type = random.choice(powerup_types)
+            # 根据概率分布选择结果
+            choices = list(powerup_probs.keys())
+            weights = list(powerup_probs.values())
+            result = random.choices(choices, weights=weights, k=1)[0]
 
-                # 火力增强额外检查概率
-                if powerup_type == PowerupType.FIRE_INCREASE:
-                    if random.random() > fire_rarity:
-                        continue
-
-                powerup = self.spawn_powerup(wall_pos[0], wall_pos[1], powerup_type)
+            if result != "none":
+                powerup = self.spawn_powerup(wall_pos[0], wall_pos[1], result)
                 powerups.append(powerup)
 
         return powerups

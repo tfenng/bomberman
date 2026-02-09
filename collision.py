@@ -45,11 +45,11 @@ class CollisionSystem:
         radius: float,
         check_bombs: bool = True
     ) -> CollisionInfo:
-        """检测圆形与网格的碰撞"""
+        """检测圆形与网格的碰撞（简化版本）"""
         # 转换为网格坐标
         grid_x, grid_y = self.grid.pixel_to_grid(center_x, center_y)
 
-        # 检查当前格子是否是墙
+        # 检查当前格子是否是墙（实体中心在墙内）
         if self.grid.is_wall(grid_x, grid_y):
             return self._create_wall_collision(
                 center_x, center_y, radius, grid_x, grid_y
@@ -64,8 +64,8 @@ class CollisionSystem:
                 (grid_x, grid_y)
             )
 
-        # 检查玩家圆形是否与相邻墙重叠
-        # 只检查玩家可能接触到的墙
+        # 简化：只检查实体中心是否进入了相邻墙格子
+        # 不检查重叠，只检查是否完全进入
         neighbors = [
             (grid_x - 1, grid_y),  # 左
             (grid_x + 1, grid_y),  # 右
@@ -78,19 +78,34 @@ class CollisionSystem:
                 continue
 
             if self.grid.is_wall(nx, ny):
-                # 计算玩家是否真正碰到这面墙
-                if self._circle_overlaps_tile(center_x, center_y, radius, nx, ny):
+                # 检查实体是否进入了这个格子（通过检查中心点）
+                wall_center_x = self.grid.offset_x + nx * self.grid.tile_size + self.grid.tile_size // 2
+                wall_center_y = self.grid.offset_y + ny * self.grid.tile_size + self.grid.tile_size // 2
+
+                dist_x = abs(center_x - wall_center_x)
+                dist_y = abs(center_y - wall_center_y)
+
+                # 如果中心点靠近相邻格子中心，才认为是碰撞
+                if dist_x < self.grid.tile_size * 0.4 and dist_y < self.grid.tile_size * 0.4:
                     return self._create_wall_collision(
                         center_x, center_y, radius, nx, ny
                     )
 
             if check_bombs and self.grid.has_bomb(nx, ny):
-                return CollisionInfo(
-                    CollisionType.BOMB,
-                    Vector2(0, 0),
-                    (center_x, center_y),
-                    (nx, ny)
-                )
+                # 对炸弹做同样的简化检查
+                wall_center_x = self.grid.offset_x + nx * self.grid.tile_size + self.grid.tile_size // 2
+                wall_center_y = self.grid.offset_y + ny * self.grid.tile_size + self.grid.tile_size // 2
+
+                dist_x = abs(center_x - wall_center_x)
+                dist_y = abs(center_y - wall_center_y)
+
+                if dist_x < self.grid.tile_size * 0.4 and dist_y < self.grid.tile_size * 0.4:
+                    return CollisionInfo(
+                        CollisionType.BOMB,
+                        Vector2(0, 0),
+                        (center_x, center_y),
+                        (nx, ny)
+                    )
 
         return CollisionInfo()
 
@@ -206,44 +221,21 @@ class CollisionSystem:
     ) -> Tuple[float, float, Vector2]:
         """
         解决碰撞，返回调整后的位置和碰撞法线
+        简化版本：总是返回目标位置，由调用者处理碰撞响应
         """
-        new_x, new_y, collided = self.predict_position(
-            position, velocity, radius, check_bombs
-        )
+        # 先尝试直接移动
+        new_x = position[0] + velocity.x
+        new_y = position[1] + velocity.y
 
-        if collided:
-            # 尝试只移动X
-            test_x, _, _ = self.predict_position(
-                position, Vector2(velocity.x, 0), radius, check_bombs
-            )
+        # 检查碰撞
+        collision = self.check_circle_to_grid(new_x, new_y, radius, check_bombs)
 
-            # 尝试只移动Y
-            _, test_y, _ = self.predict_position(
-                position, Vector2(0, velocity.y), radius, check_bombs
-            )
-
-            # 选择碰撞较小的方向
-            collision_x = self.check_circle_to_grid(test_x, position[1], radius, check_bombs)
-            collision_y = self.check_circle_to_grid(position[0], test_y, radius, check_bombs)
-
-            if not collision_x and collision_y:
-                new_x = test_x
-                normal = Vector2(1, 0) if velocity.x > 0 else Vector2(-1, 0)
-            elif collision_x and not collision_y:
-                new_y = test_y
-                normal = Vector2(0, 1) if velocity.y > 0 else Vector2(0, -1)
-            elif not collision_x and not collision_y:
-                new_x = test_x
-                new_y = test_y
-                normal = Vector2(0, 0)
-            else:
-                # 两个方向都碰撞，回到原位
-                new_x, new_y = position
-                normal = velocity.normalize() * -1 if velocity.length() > 0 else Vector2(0, 0)
-
-            return new_x, new_y, normal
-
-        return new_x, new_y, Vector2(0, 0)
+        if collision:
+            # 发生碰撞，回到当前位置，返回碰撞法线
+            return position[0], position[1], collision.direction
+        else:
+            # 无碰撞，正常移动
+            return new_x, new_y, Vector2(0, 0)
 
     def is_path_clear(
         self,

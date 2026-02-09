@@ -86,8 +86,9 @@ class Grid:
         return self.get_tile(grid_x, grid_y) == TileType.SOFT_WALL
 
     def is_empty(self, grid_x: int, grid_y: int) -> bool:
-        """检查是否为空地"""
-        return self.get_tile(grid_x, grid_y) == TileType.EMPTY
+        """检查是否为空地（可通行，不包括墙）"""
+        tile = self.get_tile(grid_x, grid_y)
+        return tile == TileType.EMPTY or tile == TileType.EXIT
 
     def is_exit(self, grid_x: int, grid_y: int) -> bool:
         """检查是否为出口"""
