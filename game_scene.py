@@ -101,6 +101,9 @@ class GameScene(BaseScene):
         self.grid.width = self.level_data.get('width', 13)
         self.grid.height = self.level_data.get('height', 11)
 
+        # 解析地图数据到网格
+        self.grid.load_from_data(self.level_data)
+
         # 获取敌人总数
         self.total_enemies = len(self.level_data.get("enemies", []))
 
