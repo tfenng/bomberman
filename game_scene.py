@@ -22,6 +22,7 @@ from bomb import BombManager
 from powerup import PowerupManager
 from helpers import distance
 from fonts import font_manager
+from map import MapPool, MapLoader
 
 
 class GameScene(BaseScene):
@@ -60,20 +61,45 @@ class GameScene(BaseScene):
         self.exit_hint_timer = 0.0  # 出口提示显示时间
         self._end_sound_played = False  # 防止重复播放结束音效
 
+        # 地图池（多地图系统）
+        self.map_pool = MapPool('assets/maps')
+        self.current_map_path = None
+        self.all_maps_completed = False  # 全部地图通关标志
+
     def enter(self):
         """进入游戏场景"""
         self._load_level()
 
-    def _load_level(self):
-        """加载关卡"""
+    def _load_level(self, map_path: str = None):
+        """
+        加载关卡
+
+        Args:
+            map_path: 指定地图路径，为None则从地图池随机获取
+        """
+        # 从地图池获取随机地图
+        if map_path is None:
+            if not self.map_pool.has_available():
+                # 没有可用地图，标记为全部通关
+                self.all_maps_completed = True
+                self.victory = True
+                return
+            map_path = self.map_pool.get_random()
+            self.current_map_path = map_path
+
         # 创建网格
         self.grid = Grid(13, 11)
 
         # 创建生成器
         self.spawner = Spawner(self.grid)
 
-        # 加载关卡数据
-        self.level_data = self.spawner.load_level("level_01")
+        # 使用 MapLoader 加载地图
+        loader = MapLoader()
+        self.level_data = loader.load(map_path)
+
+        # 更新网格尺寸
+        self.grid.width = self.level_data.get('width', 13)
+        self.grid.height = self.level_data.get('height', 11)
 
         # 获取敌人总数
         self.total_enemies = len(self.level_data.get("enemies", []))
@@ -108,7 +134,11 @@ class GameScene(BaseScene):
             # 游戏结束状态下的操作
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r:
-                    self._load_level()  # 重新开始
+                    if self.all_maps_completed:
+                        # 全部通关，重新开始游戏
+                        self.map_pool.reset()
+                        self.all_maps_completed = False
+                    self._load_level()  # 重新开始下一关
                 elif event.key == pygame.K_ESCAPE:
                     self.set_next_state(GameState.MENU)
             return
@@ -288,6 +318,14 @@ class GameScene(BaseScene):
                     self.victory = True
                     from assets import assets
                     assets.play_sound("victory")
+
+                    # 标记当前地图为已使用
+                    if self.current_map_path:
+                        self.map_pool.mark_used(self.current_map_path)
+
+                    # 检查是否还有更多地图
+                    if not self.map_pool.has_available():
+                        self.all_maps_completed = True
                 else:
                     # 玩家到达出口但还有敌人，显示提示
                     alive_enemies = sum(1 for e in self.enemies if e.alive)
@@ -435,25 +473,50 @@ class GameScene(BaseScene):
         overlay.fill((0, 0, 0, 150))
         surface.blit(overlay, (0, 0))
 
-        # 胜利文字
-        text = self.title_font.render("胜利!", True, (255, 200, 0))
-        text_rect = text.get_rect(center=(surface.get_width() // 2, surface.get_height() // 2 - 50))
-        surface.blit(text, text_rect)
+        if self.all_maps_completed:
+            # 全部通关画面
+            text = self.title_font.render("恭喜通关!", True, (255, 200, 0))
+            text_rect = text.get_rect(center=(surface.get_width() // 2, surface.get_height() // 2 - 80))
+            surface.blit(text, text_rect)
 
-        # 统计信息
-        stats = [
-            f"击杀敌人: {self.kill_count}/{self.total_enemies}",
-            f"用时: {self.time_elapsed:.1f}秒"
-        ]
+            # 剩余地图提示
+            hint = self.hint_font.render("已完成所有关卡!", True, WHITE)
+            surface.blit(hint, (surface.get_width() // 2 - hint.get_width() // 2, surface.get_height() // 2 - 20))
 
-        for i, stat in enumerate(stats):
-            stat_text = self.stats_font.render(stat, True, WHITE)
-            surface.blit(stat_text, (surface.get_width() // 2 - stat_text.get_width() // 2,
-                                    surface.get_height() // 2 + 20 + i * 30))
+            # 提示文字
+            hint1 = self.hint_font.render("按 R 重新开始游戏", True, WHITE)
+            hint2 = self.hint_font.render("按 ESC 返回菜单", True, WHITE)
 
-        # 提示文字
-        hint1 = self.hint_font.render("按 R 再玩一次", True, WHITE)
-        hint2 = self.hint_font.render("按 ESC 返回菜单", True, WHITE)
+            surface.blit(hint1, (surface.get_width() // 2 - hint1.get_width() // 2, surface.get_height() // 2 + 40))
+            surface.blit(hint2, (surface.get_width() // 2 - hint2.get_width() // 2, surface.get_height() // 2 + 80))
+        else:
+            # 单关胜利画面
+            remaining = self.map_pool.get_remaining_count()
+            level_text = f"第 {3 - remaining} 关完成!"
 
-        surface.blit(hint1, (surface.get_width() // 2 - hint1.get_width() // 2, surface.get_height() // 2 + 100))
-        surface.blit(hint2, (surface.get_width() // 2 - hint2.get_width() // 2, surface.get_height() // 2 + 140))
+            text = self.title_font.render("胜利!", True, (255, 200, 0))
+            text_rect = text.get_rect(center=(surface.get_width() // 2, surface.get_height() // 2 - 50))
+            surface.blit(text, text_rect)
+
+            # 关卡提示
+            level_hint = self.hint_font.render(level_text, True, (200, 200, 200))
+            surface.blit(level_hint, (surface.get_width() // 2 - level_hint.get_width() // 2,
+                                      surface.get_height() // 2))
+
+            # 统计信息
+            stats = [
+                f"击杀敌人: {self.kill_count}/{self.total_enemies}",
+                f"用时: {self.time_elapsed:.1f}秒"
+            ]
+
+            for i, stat in enumerate(stats):
+                stat_text = self.stats_font.render(stat, True, WHITE)
+                surface.blit(stat_text, (surface.get_width() // 2 - stat_text.get_width() // 2,
+                                        surface.get_height() // 2 + 40 + i * 30))
+
+            # 提示文字
+            hint1 = self.hint_font.render("按 R 进入下一关", True, WHITE)
+            hint2 = self.hint_font.render("按 ESC 返回菜单", True, WHITE)
+
+            surface.blit(hint1, (surface.get_width() // 2 - hint1.get_width() // 2, surface.get_height() // 2 + 120))
+            surface.blit(hint2, (surface.get_width() // 2 - hint2.get_width() // 2, surface.get_height() // 2 + 160))

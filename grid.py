@@ -7,7 +7,7 @@
 from typing import Tuple, Optional, List
 from pygame.math import Vector2
 
-from constants import TILE_SIZE, MAP_OFFSET_X, MAP_OFFSET_Y, TileType
+from constants import TILE_SIZE, MAP_OFFSET_X, MAP_OFFSET_Y, TileType, TileChar
 
 
 class Grid:
@@ -211,23 +211,47 @@ class Grid:
     def load_from_data(self, level_data: dict):
         """从关卡数据加载地图"""
         tiles = level_data.get("tiles", [])
-        tile_legend = level_data.get("tile_legend", {})
+        tile_legend = level_data.get("tile_legend", None)  # 新格式可能没有 tile_legend
+
+        # 支持两种格式：
+        # 1. 新格式：直接使用 TileChar 字符映射
+        # 2. 旧格式：使用 tile_legend 映射
+
+        # 定义默认字符映射
+        char_to_type = {
+            TileChar.HARD_WALL: TileType.HARD_WALL,
+            TileChar.SOFT_WALL: TileType.SOFT_WALL,
+            TileChar.EMPTY: TileType.EMPTY,
+            TileChar.EXIT: TileType.EXIT,
+            TileChar.PLAYER: TileType.EMPTY,  # 玩家出生点标记设为空地
+        }
 
         for row_idx, row in enumerate(tiles):
             for col_idx, char in enumerate(row):
                 if col_idx >= self.width or row_idx >= self.height:
                     continue
 
-                tile_type_str = tile_legend.get(char, "empty")
-
-                if tile_type_str == "hard_wall":
-                    self.set_tile(col_idx, row_idx, TileType.HARD_WALL)
-                elif tile_type_str == "soft_wall":
-                    self.add_soft_wall(col_idx, row_idx)
-                elif tile_type_str == "exit":
-                    self.set_tile(col_idx, row_idx, TileType.EXIT)
+                # 根据格式确定 tile 类型
+                if tile_legend:
+                    # 旧格式：使用 tile_legend
+                    tile_type_str = tile_legend.get(char, "empty")
+                    if tile_type_str == "hard_wall":
+                        tile_type = TileType.HARD_WALL
+                    elif tile_type_str == "soft_wall":
+                        self.add_soft_wall(col_idx, row_idx)
+                        continue
+                    elif tile_type_str == "exit":
+                        tile_type = TileType.EXIT
+                    else:
+                        tile_type = TileType.EMPTY
                 else:
-                    self.set_tile(col_idx, row_idx, TileType.EMPTY)
+                    # 新格式：直接使用字符映射
+                    tile_type = char_to_type.get(char, TileType.EMPTY)
+                    if char == TileChar.SOFT_WALL:
+                        self.add_soft_wall(col_idx, row_idx)
+                        continue
+
+                self.set_tile(col_idx, row_idx, tile_type)
 
     def create_default_map(self):
         """创建默认地图（四周硬墙）"""

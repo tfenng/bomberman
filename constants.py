@@ -110,6 +110,16 @@ class TileType:
     SOFT_WALL = 2
     EXIT = 3
 
+
+# ============ 地图字符常量 ============
+class TileChar:
+    """地图文件字符映射"""
+    HARD_WALL = '#'  # 硬墙 (不可破坏)
+    SOFT_WALL = '.'  # 软墙 (可破坏)
+    EMPTY = ' '      # 空地
+    PLAYER = '@'     # 玩家出生点
+    EXIT = 'X'       # 出口
+
 # ============ 道具类型 ============
 class PowerupType:
     FIRE_INCREASE = "fire_increase"  # +1 爆炸范围

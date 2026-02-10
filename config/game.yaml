@@ -1,0 +1,34 @@
+# 游戏配置
+# 炸弹人游戏平衡参数
+
+# 炸弹设置
+bomb:
+  fuse_time: 2.0           # 爆炸倒计时（秒）
+  explosion_duration: 0.3   # 爆炸持续时间（秒）
+  initial_power: 1          # 初始爆炸范围（格）
+  initial_count: 1         # 初始可放置炸弹数
+  max_power: 4             # 最大爆炸范围（格）
+  max_count: 3             # 最大可放置炸弹数
+
+# 道具掉落概率
+powerups:
+  bomb_increase: 0.10      # +1 炸弹数概率
+  speed_increase: 0.07     # +20% 速度概率
+  fire_increase: 0.03     # +1 爆炸范围概率
+  none: 0.80               # 无道具概率
+
+# 玩家设置
+player:
+  speed_default: 150.0     # 默认移动速度（像素/秒）
+  speed_min: 100.0
+  speed_max: 250.0
+
+# 敌人设置
+enemy:
+  basic_speed: 1.5         # 基础敌人速度倍率
+  chase_speed: 1.2         # 追踪敌人速度倍率
+  chase_range: 5           # 追踪范围（格）
+
+# 游戏设置
+game:
+  total_maps: 3           # 总地图数量

@@ -145,8 +145,24 @@ class Spawner:
         )
 
     def load_level(self, level_name: str = "level_01") -> Dict:
-        """加载关卡"""
-        level_data = assets.load_level(level_name)
+        """加载关卡（兼容旧接口）"""
+        # 尝试加载 .map 文件
+        from pathlib import Path
+        map_path = Path("assets/maps") / f"{level_name}.map"
+        if map_path.exists():
+            from map import MapLoader
+            loader = MapLoader()
+            level_data = loader.load(str(map_path))
+        else:
+            # 回退到 JSON 格式
+            level_data = assets.load_level(level_name)
+
+        self._apply_level_data(level_data)
+        return level_data
+
+    def _apply_level_data(self, level_data: Dict):
+        """应用关卡数据到网格"""
+        import pygame
 
         # 设置网格偏移
         self.collision_system.grid.offset_x = (pygame.display.get_surface().get_width() -
@@ -174,8 +190,6 @@ class Spawner:
         else:
             # 出口直接显示
             self.grid.set_tile(exit_x, exit_y, TileType.EXIT)
-
-        return level_data
 
 
 def get_random_powerup_type() -> str:
