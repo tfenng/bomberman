@@ -45,67 +45,32 @@ class CollisionSystem:
         radius: float,
         check_bombs: bool = True
     ) -> CollisionInfo:
-        """检测圆形与网格的碰撞（简化版本）"""
-        # 转换为网格坐标
+        """检测圆形与网格的碰撞"""
+        # 获取玩家周围的格子（3x3区域）
         grid_x, grid_y = self.grid.pixel_to_grid(center_x, center_y)
 
-        # 检查当前格子是否是墙（实体中心在墙内）
-        if self.grid.is_wall(grid_x, grid_y):
-            return self._create_wall_collision(
-                center_x, center_y, radius, grid_x, grid_y
-            )
+        # 检查3x3区域内的所有格子
+        for gy in range(grid_y - 1, grid_y + 2):
+            for gx in range(grid_x - 1, grid_x + 2):
+                if not self.grid.is_valid_grid(gx, gy):
+                    continue
 
-        # 检查炸弹
-        if check_bombs and self.grid.has_bomb(grid_x, grid_y):
-            return CollisionInfo(
-                CollisionType.BOMB,
-                Vector2(0, 0),
-                (center_x, center_y),
-                (grid_x, grid_y)
-            )
+                # 检查墙
+                if self.grid.is_wall(gx, gy):
+                    if self._circle_overlaps_tile(center_x, center_y, radius, gx, gy):
+                        return self._create_wall_collision(
+                            center_x, center_y, radius, gx, gy
+                        )
 
-        # 简化：只检查实体中心是否进入了相邻墙格子
-        # 不检查重叠，只检查是否完全进入
-        neighbors = [
-            (grid_x - 1, grid_y),  # 左
-            (grid_x + 1, grid_y),  # 右
-            (grid_x, grid_y - 1),  # 上
-            (grid_x, grid_y + 1),  # 下
-        ]
-
-        for nx, ny in neighbors:
-            if not self.grid.is_valid_grid(nx, ny):
-                continue
-
-            if self.grid.is_wall(nx, ny):
-                # 检查实体是否进入了这个格子（通过检查中心点）
-                wall_center_x = self.grid.offset_x + nx * self.grid.tile_size + self.grid.tile_size // 2
-                wall_center_y = self.grid.offset_y + ny * self.grid.tile_size + self.grid.tile_size // 2
-
-                dist_x = abs(center_x - wall_center_x)
-                dist_y = abs(center_y - wall_center_y)
-
-                # 如果中心点靠近相邻格子中心，才认为是碰撞
-                if dist_x < self.grid.tile_size * 0.4 and dist_y < self.grid.tile_size * 0.4:
-                    return self._create_wall_collision(
-                        center_x, center_y, radius, nx, ny
-                    )
-
-            if check_bombs and self.grid.has_bomb(nx, ny):
-                # 对炸弹做同样的简化检查
-                wall_center_x = self.grid.offset_x + nx * self.grid.tile_size + self.grid.tile_size // 2
-                wall_center_y = self.grid.offset_y + ny * self.grid.tile_size + self.grid.tile_size // 2
-
-                dist_x = abs(center_x - wall_center_x)
-                dist_y = abs(center_y - wall_center_y)
-
-                if dist_x < self.grid.tile_size * 0.4 and dist_y < self.grid.tile_size * 0.4:
-                    return CollisionInfo(
-                        CollisionType.BOMB,
-                        Vector2(0, 0),
-                        (center_x, center_y),
-                        (nx, ny)
-                    )
+                # 检查炸弹
+                if check_bombs and self.grid.has_bomb(gx, gy):
+                    if self._circle_overlaps_tile(center_x, center_y, radius, gx, gy):
+                        return CollisionInfo(
+                            CollisionType.BOMB,
+                            Vector2(0, 0),
+                            (center_x, center_y),
+                            (gx, gy)
+                        )
 
         return CollisionInfo()
 
