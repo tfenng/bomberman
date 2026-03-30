@@ -59,15 +59,57 @@ python main.py
 ```bash
 # 自动检测当前平台并打包
 python build_config.py
+```
 
-# 手动使用 PyInstaller（高级）
+打包后的可执行文件位于 `dist/` 目录。
+
+### GitHub Actions 自动构建 Windows 包
+
+仓库已经包含 GitHub Actions 工作流 `.github/workflows/build-windows.yml`。当代码推送到 `master` / `main`、推送 `v*` 版本标签，或手动触发 `workflow_dispatch` 时，会自动：
+
+1. 在 `windows-latest` 上安装依赖
+2. 执行 `python build_config.py`
+3. 生成 `dist/Bomberman.exe`
+4. 打包为带版本号的 Windows zip
+5. 上传为 Actions artifact `bomberman-windows-<version>`
+6. 如果当前是 `v*` 标签构建，则自动创建 GitHub Release 并上传 zip 附件
+
+下载方式：
+
+1. 打开 GitHub 仓库的 `Actions`
+2. 进入一次成功的 `Build Windows Package`
+3. 在页面底部下载 artifact `bomberman-windows-<version>`
+
+### 自动发布 Release
+
+如果你希望自动生成 GitHub Release，只需要推送一个版本标签：
+
+```bash
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+工作流会自动构建 Windows 包，并在 GitHub Releases 中创建同名版本，附件为 `Bomberman-windows-v1.0.1.zip`。
+
+### 手动使用 PyInstaller（高级）
+
+macOS / Linux:
+
+```bash
 pyinstaller --clean --windowed --onefile \
   --add-data "assets:assets" \
   --name Bomberman \
   main.py
 ```
 
-打包后的可执行文件位于 `dist/` 目录。
+Windows PowerShell:
+
+```powershell
+pyinstaller --clean --windowed --onefile `
+  --add-data "assets;assets" `
+  --name Bomberman `
+  main.py
+```
 
 ## 🗺️ 地图生成
 

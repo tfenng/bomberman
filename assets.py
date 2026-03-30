@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pygame
 
+from helpers import resolve_game_path
+
 
 class AssetManager:
     """资源管理器单例"""
@@ -28,7 +30,7 @@ class AssetManager:
             self._sounds: Dict[str, pygame.mixer.Sound] = {}
             self._fonts: Dict[str, pygame.font.Font] = {}
             self._levels: Dict[str, Dict] = {}
-            self._base_path = Path(__file__).parent / "assets"
+            self._base_path = resolve_game_path("assets")
             AssetManager._initialized = True
 
     @property

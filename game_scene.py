@@ -20,7 +20,7 @@ from enemy import Enemy
 from explosion import ExplosionManager
 from bomb import BombManager
 from powerup import PowerupManager
-from helpers import distance
+from helpers import distance, resolve_game_path
 from fonts import font_manager
 from map import MapPool, MapLoader
 
@@ -62,7 +62,7 @@ class GameScene(BaseScene):
         self._end_sound_played = False  # 防止重复播放结束音效
 
         # 地图池（多地图系统）
-        self.map_pool = MapPool('assets/maps')
+        self.map_pool = MapPool(resolve_game_path("assets/maps"))
         self.current_map_path = None
         self.all_maps_completed = False  # 全部地图通关标志
 

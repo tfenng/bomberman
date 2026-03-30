@@ -5,10 +5,27 @@
 
 import math
 import random
+import sys
+from pathlib import Path
 from typing import Tuple, Optional, List
 
 import pygame
 from pygame.math import Vector2
+
+
+def get_runtime_base_path() -> Path:
+    """获取运行时根目录，兼容 PyInstaller onefile。"""
+    if hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent
+
+
+def resolve_game_path(path: str | Path) -> Path:
+    """将项目内相对路径解析为运行时可访问的绝对路径。"""
+    candidate = Path(path)
+    if candidate.is_absolute():
+        return candidate
+    return get_runtime_base_path() / candidate
 
 
 def clamp(value: float, min_value: float, max_value: float) -> float:

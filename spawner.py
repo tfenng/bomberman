@@ -16,6 +16,7 @@ from powerup import PowerupManager
 from bomb import BombManager
 from explosion import ExplosionManager
 from assets import assets
+from helpers import resolve_game_path
 
 
 class Spawner:
@@ -147,8 +148,7 @@ class Spawner:
     def load_level(self, level_name: str = "level_01") -> Dict:
         """加载关卡（兼容旧接口）"""
         # 尝试加载 .map 文件
-        from pathlib import Path
-        map_path = Path("assets/maps") / f"{level_name}.map"
+        map_path = resolve_game_path(f"assets/maps/{level_name}.map")
         if map_path.exists():
             from map import MapLoader
             loader = MapLoader()

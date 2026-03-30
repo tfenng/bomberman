@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 from constants import TileType, TileChar
+from helpers import resolve_game_path
 
 
 class MapLoader:
@@ -36,7 +37,7 @@ class MapLoader:
         Returns:
             关卡数据字典
         """
-        path = Path(map_path)
+        path = resolve_game_path(map_path)
 
         if path.suffix == '.map':
             return self._load_map_file(path)
@@ -160,11 +161,11 @@ class MapLoader:
         Returns:
             地图文件路径列表
         """
-        path = Path(map_dir)
+        path = resolve_game_path(map_dir)
         if not path.exists():
             return []
 
-        return sorted(path.glob('*.map'))
+        return [str(map_file) for map_file in sorted(path.glob('*.map'))]
 
 
 if __name__ == '__main__':

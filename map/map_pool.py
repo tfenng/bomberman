@@ -7,6 +7,8 @@ import random
 from pathlib import Path
 from typing import List, Optional, Set
 
+from helpers import resolve_game_path
+
 
 class MapPool:
     """地图池管理器"""
@@ -18,7 +20,7 @@ class MapPool:
         Args:
             map_dir: 地图文件目录
         """
-        self.map_dir = Path(map_dir)
+        self.map_dir = resolve_game_path(map_dir)
         self.available_maps: List[str] = []  # 可用地图列表
         self.used_maps: Set[str] = set()     # 已用地图
         self._load_all_maps()
