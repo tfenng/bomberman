@@ -1,0 +1,6 @@
+{
+  "main_stage_timer_seconds": 300,
+  "bomb_fuse_seconds": 2.25,
+  "flame_duration_seconds": 0.45,
+  "punisher_spawn_count": 2
+}
