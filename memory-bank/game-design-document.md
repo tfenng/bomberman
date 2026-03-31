@@ -4,7 +4,7 @@
 
 ### 中文
 
-本项目是一款从零开始设计的单人动作迷宫游戏。它以 [bomber.md](/Users/tony/src/bomberman/bomber.md) 中整理的 FC/NES《炸弹人》特征为重要参照，但不是复刻，也不继承任何已废弃原型的技术假设或内容结构。
+本项目是一款从零开始设计的单人动作迷宫游戏。它以 [bomber.md](/Users/tony/src/bomberman/docs/bomber.md) 中整理的 FC/NES《炸弹人》特征为重要参照，但不是复刻，也不继承任何已废弃原型的技术假设或内容结构。
 
 这版产品要保留的经典骨架：
 
@@ -26,7 +26,7 @@
 
 ### English
 
-This project is a clean-slate single-player action-maze game. It takes key FC/NES Bomberman traits summarized in [bomber.md](/Users/tony/src/bomberman/bomber.md) as reference, but it is not a direct remake and does not inherit any assumptions from the abandoned prototype.
+This project is a clean-slate single-player action-maze game. It takes key FC/NES Bomberman traits summarized in [bomber.md](/Users/tony/src/bomberman/docs/bomber.md) as reference, but it is not a direct remake and does not inherit any assumptions from the abandoned prototype.
 
 Classic foundations this product intentionally keeps:
 
@@ -64,6 +64,7 @@ The goal is a single-player desktop action game with a "classic rules backbone +
 - 主战役包含 `12` 个主线关卡
 - 每 `4` 个主线关卡后插入 `1` 个奖励关
 - 总流程为 `12` 主线关 + `3` 奖励关
+- 每个主题区的第 `4` 关通关后，先奖励 `1` 条生命，再进入对应奖励关
 - 奖励关采用 `30 秒` 限时挑战
 - 奖励关中玩家无敌，目标是在限定时间内尽可能多地消灭敌人赚取分数
 
@@ -79,6 +80,7 @@ The goal is a single-player desktop action game with a "classic rules backbone +
 #### 2.4 玩家规则
 
 - 地图逻辑以 tile 为核心，视觉表现可平滑移动
+- 玩家与敌人的逻辑移动都以格中心为锚点，只在到达格中心时选择新方向
 - 默认操作：
   - `W/A/S/D` 或方向键：移动
   - `Space`：放置炸弹
@@ -111,7 +113,15 @@ The goal is a single-player desktop action game with a "classic rules backbone +
   - 隐藏出口显现
   - 玩家进入出口
 
-#### 2.7 轻量现代化 QoL
+#### 2.7 关卡计时与拖延惩罚
+
+- 所有主线关卡统一采用 `300 秒` 倒计时
+- HUD 持续显示剩余时间
+- 倒计时归零后，地图上新增 `2` 个 `Punisher`
+- `Punisher` 从可通行候选格中随机生成，但必须与玩家当前位置保持最小安全间隔
+- `Punisher` 只可穿过软墙，不可穿过硬墙或炸弹
+
+#### 2.8 轻量现代化 QoL
 
 - 炸弹临爆前要有清晰的闪烁节奏
 - HUD 持续显示剩余敌人数、生命数、炸弹容量、火焰等级、速度等级
@@ -134,6 +144,7 @@ The goal is a single-player desktop action game with a "classic rules backbone +
 - The main campaign contains `12` core stages
 - A bonus stage appears after every `4` core stages
 - Total flow: `12` core stages + `3` bonus stages
+- Clearing stage `4` of each themed zone grants `1` extra life before entering its bonus stage
 - Bonus stages are `30-second` timed challenges
 - During bonus stages the player is invulnerable and tries to destroy as many enemies as possible for score
 
@@ -149,6 +160,7 @@ The goal is a single-player desktop action game with a "classic rules backbone +
 #### 2.4 Player Rules
 
 - Gameplay logic is tile-centric, while movement presentation may be smooth
+- Player and enemy logic both anchor to tile centers and only choose new directions on center arrival
 - Default controls:
   - `W/A/S/D` or arrow keys: move
   - `Space`: place bomb
@@ -181,7 +193,15 @@ The goal is a single-player desktop action game with a "classic rules backbone +
   - the hidden exit is revealed
   - the player enters the exit
 
-#### 2.7 Light Modern QoL
+#### 2.7 Stage Timer and Anti-Stall Pressure
+
+- All mainline stages use a shared `300-second` countdown
+- The HUD continuously shows remaining time
+- When the countdown reaches zero, `2` `Punisher` enemies are added to the map
+- `Punishers` spawn from valid passable cells chosen at random, but each spawn must keep a minimum safety gap from the player's current location
+- `Punishers` may pass through soft walls only; they do not pass through hard walls or bombs
+
+#### 2.8 Light Modern QoL
 
 - Bombs must communicate imminent detonation with a clear flashing rhythm
 - The HUD continuously shows remaining enemies, lives, bomb capacity, flame level, and speed tier
@@ -329,20 +349,21 @@ Legend:
 
 #### 4.2 敌人梯度
 
-`bomber.md` 中最有价值的启发之一，是敌人不是简单地“血量更高”，而是以追踪方式、速度和穿墙能力构成行为梯度。这版产品采用 5 个敌人家族：
+[bomber.md](/Users/tony/src/bomberman/docs/bomber.md) 中最有价值的启发之一，是敌人不是简单地“血量更高”，而是以追踪方式、速度和穿墙能力构成行为梯度。这版产品采用 5 个敌人家族：
 
-| 敌人 | 分数 | 行为摘要 | 设计职责 |
-| --- | --- | --- | --- |
-| Drifter | 100 | 随机巡游，遇阻改向 | 基础教学敌人 |
-| Seeker-Y | 200 | 在同列或近似纵向路径上追踪玩家 | 强化纵向压迫 |
-| Seeker-X | 400 | 在同行或近似横向路径上追踪玩家 | 强化横向压迫 |
-| Hunter | 800 | 双轴追踪玩家，速度较快 | 中高压主力敌人 |
-| Phantom | 2000 | 可穿过软墙，追踪偏执 | 高威胁稀有敌人 |
+| 敌人 | 分数 | 速度 | 行为摘要 | 设计职责 |
+| --- | --- | --- | --- | --- |
+| Drifter | 100 | 2.0 tiles/sec | 随机巡游，仅在到达格中心时重新选方向，遇阻改向 | 基础教学敌人 |
+| Seeker-Y | 200 | 3.0 tiles/sec | 仅在与玩家同列时追踪，否则按默认巡游逻辑行动；仅在格中心重新决策 | 强化纵向压迫 |
+| Seeker-X | 400 | 3.0 tiles/sec | 仅在与玩家同行时追踪，否则按默认巡游逻辑行动；仅在格中心重新决策 | 强化横向压迫 |
+| Hunter | 800 | 4.0 tiles/sec | 在格中心优先选择能缩短与玩家曼哈顿距离的方向；若同轴则直接追击 | 中高压主力敌人 |
+| Phantom | 2000 | 2.0 tiles/sec | 沿 `Hunter` 的追击逻辑行动，但只可穿过软墙，不可穿过硬墙或炸弹 | 高威胁稀有敌人 |
 
 额外规则：
 
-- 当主线关卡超时或进入极端拖延状态时，可生成 `2` 个 Punisher 敌人替代普通敌人
-- Punisher 为高压清场单位，只用于防止拖时间刷安全局
+- 主线关卡中的敌人编排与核心成长道具分配由设计阶段预生成并固定到关卡数据中；同一关卡重开时结果保持一致
+- 当主线关卡超时或进入极端拖延状态时，地图上新增 `2` 个 `Punisher`
+- `Punisher` 为高压清场单位，移动速度为 `4.0 tiles/sec`，在格中心优先选择能缩短与玩家曼哈顿距离的方向，且只可穿过软墙
 
 #### 4.3 道具分层
 
@@ -369,8 +390,9 @@ Legend:
 
 - 每个主线关卡固定隐藏 `1` 个出口
 - 每个主线关卡固定隐藏 `1` 个核心成长道具或成长替代奖励
+- MVP 的前 `4` 个主线关与首个奖励关不启用战术功能道具
 - 从第 `5` 关开始，部分关卡额外隐藏 `1` 个战术功能道具
-- 若某项核心成长已达上限，则该位置改为高分奖励物
+- 若某项核心成长已达上限，则该位置改为统一的 `10000` 分高分奖励，并在过关结算时发放
 
 #### 4.5 分数与秘密目标
 
@@ -378,8 +400,9 @@ Legend:
 - 敌人击杀按敌人类型提供固定积分
 - 奖励关重点提供高分空间
 - 主线关可配置“秘密目标”，用于致敬经典隐藏奖励，但规则必须比 FC 原版更易理解
+- 首个 MVP 交付版本不启用秘密目标
 
-MVP 中允许的秘密目标类型：
+后续版本可启用的秘密目标类型：
 
 - 无伤通关
 - 限时通关
@@ -399,20 +422,21 @@ MVP 中允许的秘密目标类型：
 
 #### 4.2 Enemy Ladder
 
-One of the strongest ideas in `bomber.md` is that enemy escalation comes from movement logic, tracking behavior, speed, and wall interaction rather than simple health inflation. This design uses 5 enemy families:
+One of the strongest ideas in [bomber.md](/Users/tony/src/bomberman/docs/bomber.md) is that enemy escalation comes from movement logic, tracking behavior, speed, and wall interaction rather than simple health inflation. This design uses 5 enemy families:
 
-| Enemy | Score | Behavior Summary | Design Role |
-| --- | --- | --- | --- |
-| Drifter | 100 | random roaming, changes direction when blocked | baseline teaching enemy |
-| Seeker-Y | 200 | tracks the player along vertical alignment or near-vertical pathing | adds column pressure |
-| Seeker-X | 400 | tracks the player along horizontal alignment or near-horizontal pathing | adds lane pressure |
-| Hunter | 800 | dual-axis pursuit with higher speed | mid/high-pressure main threat |
-| Phantom | 2000 | can move through soft walls and pursues stubbornly | rare high-threat enemy |
+| Enemy | Score | Speed | Behavior Summary | Design Role |
+| --- | --- | --- | --- | --- |
+| Drifter | 100 | 2.0 tiles/sec | random roaming; only re-evaluates direction on tile-center arrival and turns when blocked | baseline teaching enemy |
+| Seeker-Y | 200 | 3.0 tiles/sec | only chases when the player is in the same column; otherwise follows default roaming and only re-decides on tile centers | adds column pressure |
+| Seeker-X | 400 | 3.0 tiles/sec | only chases when the player is in the same row; otherwise follows default roaming and only re-decides on tile centers | adds lane pressure |
+| Hunter | 800 | 4.0 tiles/sec | at tile centers, prefers directions that reduce Manhattan distance to the player; direct chase when axis-aligned | mid/high-pressure main threat |
+| Phantom | 2000 | 2.0 tiles/sec | follows the same chase preference as `Hunter`, but may pass through soft walls only, not hard walls or bombs | rare high-threat enemy |
 
 Additional rule:
 
-- if a mainline stage times out or enters excessive stalling, `2` Punisher enemies may spawn in place of passive pressure
-- Punishers are high-pressure cleanup units used to prevent degenerate waiting play
+- Mainline enemy compositions and core-growth placements are pre-generated during design and then fixed into stage data; restarting the same stage keeps the same result
+- if a mainline stage times out or enters excessive stalling, `2` `Punisher` enemies are added to the map
+- `Punishers` are high-pressure cleanup units that move at `4.0 tiles/sec`, prefer directions that reduce Manhattan distance on tile-center arrival, and may pass through soft walls only
 
 #### 4.3 Power-Up Layers
 
@@ -439,8 +463,9 @@ Tactical items, lost on death:
 
 - every mainline stage hides exactly `1` exit
 - every mainline stage hides exactly `1` core growth item or a growth-replacement reward
+- the first MVP slice of `4` mainline stages plus the first bonus stage does not enable tactical items
 - from stage `5` onward, selected stages may additionally hide `1` tactical item
-- if a core-growth category is already capped, that placement becomes a high-score reward instead
+- if a core-growth category is already capped, that placement becomes a unified `10000-point` score reward paid out during clear results
 
 #### 4.5 Score and Secret Goals
 
@@ -448,8 +473,9 @@ Tactical items, lost on death:
 - enemy kills grant fixed points by enemy type
 - bonus stages are the primary score spikes
 - mainline stages may include "secret goals" as a cleaner homage to classic hidden rewards
+- the first MVP delivery does not enable secret goals
 
-Allowed MVP secret-goal categories:
+Allowed post-MVP secret-goal categories:
 
 - no-damage clear
 - time-limit clear
