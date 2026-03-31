@@ -7,6 +7,20 @@
 import PyInstaller.__main__
 import platform
 import os
+import sys
+
+
+def configure_console_encoding():
+    """尽量让脚本在 Windows CI 中安全输出 Unicode 日志。"""
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is None or not hasattr(stream, "reconfigure"):
+            continue
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            # 某些环境下标准流不可重配，保持默认配置继续运行。
+            pass
 
 def build_for_current_platform():
     """为当前平台构建可执行文件"""
@@ -64,6 +78,7 @@ def build_for_current_platform():
 
 def main():
     """主函数"""
+    configure_console_encoding()
     print("=" * 60)
     print("《经典炸弹人》复刻版 - 自动打包工具")
     print("=" * 60)
