@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Compute package metadata
         id: meta
@@ -39,7 +39,7 @@ jobs:
           echo "zip_name=Bomberman-windows-${version}.zip" >> "${GITHUB_OUTPUT}"
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: "pip"
@@ -68,7 +68,7 @@ jobs:
           Compress-Archive -Path "release/*" -DestinationPath "dist/${{ steps.meta.outputs.zip_name }}" -Force
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: bomberman-windows-${{ steps.meta.outputs.version }}
           path: dist/${{ steps.meta.outputs.zip_name }}
