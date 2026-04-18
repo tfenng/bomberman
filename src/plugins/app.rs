@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 use crate::plugins::{
-    bomb::BombPlugin, config::ConfigPlugin, core::CorePlugin, map::MapPlugin, player::PlayerPlugin,
+    bomb::BombPlugin, config::ConfigPlugin, core::CorePlugin, enemy::EnemyPlugin,
+    game_state::GameStatePlugin, map::MapPlugin, player::PlayerPlugin,
 };
 
 pub struct AppPlugin;
@@ -21,9 +22,11 @@ impl Plugin for AppPlugin {
         .add_plugins((
             CorePlugin,
             ConfigPlugin,
+            EnemyPlugin,
             MapPlugin,
             PlayerPlugin,
             BombPlugin,
+            GameStatePlugin,
         ));
     }
 }

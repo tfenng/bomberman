@@ -5,6 +5,8 @@ use bevy::prelude::*;
 use crate::plugins::{
     app::AppState,
     config::GameBalanceConfig,
+    enemy::EnemyCount,
+    game_state::GameState,
     map::{tile_to_transform, GridPosition, StageMap},
     player::Player,
 };
@@ -218,21 +220,23 @@ fn apply_flame_damage(
     mut players: Query<(Entity, &mut GridPosition, &mut Player)>,
     flames: Query<&GridPosition, With<Flame>>,
     map: Res<StageMap>,
+    mut game_state: ResMut<GameState>,
 ) {
     let Ok((_entity, mut player_pos, mut player)) = players.single_mut() else {
         return;
     };
 
     if flames.iter().any(|flame| flame.0 == player_pos.0) {
-        info!("Player died in explosion, {} lives remaining", player.lives);
-        player.lives -= 1;
+        info!("Player died in explosion");
+        game_state.lives -= 1;
+        player.lives = game_state.lives;
 
-        if player.lives == 0 {
+        if game_state.lives == 0 {
             info!("Game Over - no lives left");
             next_state.set(AppState::GameOver);
         } else {
             // Respawn player at spawn position
-            info!("Respawning player at spawn");
+            info!("Respawning player at spawn, {} lives remaining", game_state.lives);
             player_pos.0 = map.player_spawn;
         }
     }
@@ -240,7 +244,9 @@ fn apply_flame_damage(
 
 fn check_exit(
     mut next_state: ResMut<NextState<AppState>>,
+    mut game_state: ResMut<GameState>,
     players: Query<&GridPosition, With<Player>>,
+    enemy_count: Res<EnemyCount>,
     map: Res<StageMap>,
 ) {
     let Ok(player_pos) = players.single() else {
@@ -248,7 +254,23 @@ fn check_exit(
     };
 
     if player_pos.0 == map.exit_tile {
-        info!("Player reached exit - Victory!");
-        next_state.set(AppState::Victory);
+        if enemy_count.count > 0 {
+            info!("Cannot exit - {} enemies remaining!", enemy_count.count);
+            return;
+        }
+
+        info!("Level {} complete!", game_state.current_level);
+        game_state.current_level += 1;
+
+        if game_state.current_level > game_state.total_levels {
+            info!("All levels complete - Victory!");
+            next_state.set(AppState::Victory);
+        } else {
+            info!("Advancing to level {}", game_state.current_level);
+            // Transition back to InGame for next level
+            // The GameStatePlugin will handle cleanup and reset
+            next_state.set(AppState::MainMenu);
+            // Then player presses Enter to continue
+        }
     }
 }

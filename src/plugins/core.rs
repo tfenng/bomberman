@@ -29,7 +29,11 @@ fn handle_global_input(
         }
     }
 
-    if keyboard.just_pressed(KeyCode::Enter) && matches!(state.get(), AppState::MainMenu) {
-        next_state.set(AppState::InGame);
+    if keyboard.just_pressed(KeyCode::Enter) {
+        match state.get() {
+            AppState::MainMenu => next_state.set(AppState::InGame),
+            AppState::GameOver | AppState::Victory => next_state.set(AppState::MainMenu),
+            AppState::InGame | AppState::Paused => {}
+        }
     }
 }
