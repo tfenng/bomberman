@@ -51,7 +51,124 @@
 - 构建：`cargo build --release`
 - Windows 目标：`x86_64-pc-windows-msvc`
 
-### 3.2 推荐工程结构
+### 3.2 项目结构（重要）
+
+```
+bomberman/
+├── src/                    ← 游戏源代码
+│   ├── main.rs             ← 应用入口
+│   ├── app/                ← 应用层：插件注册、状态机
+│   ├── core/               ← 核心：游戏状态、时间、配置
+│   ├── map/                ← 地图：tile数据、关卡加载、碰撞
+│   ├── player/             ← 玩家：输入、移动、状态
+│   ├── bomb/               ← 炸弹：生命周期、爆炸、传播
+│   ├── enemy/              ← 敌人：行为、追踪AI
+│   ├── pickup/             ← 道具：成长道具、战术道具
+│   ├── ui/                 ← UI：菜单、HUD
+│   ├── audio/              ← 音频：音效、BGM
+│   └── progression/         ← 进度：分数、生命、关卡推进
+├── assets/                 ← 游戏资源
+│   ├── levels/             ← LDtk 关卡文件
+│   ├── sprites/             ← 精灵图
+│   ├── audio/              ← 音效和BGM
+│   └── config/             ← 侧边配置文件
+├── tests/                  ← 集成测试
+├── bevy-release-0.17.3/    ← Bevy 引擎源码（参考用，不修改）
+├── memory-bank/            ← 设计文档
+└── Cargo.toml              ← 项目清单
+```
+
+**注意：`bevy-release-0.17.3/` 是 Bevy 游戏引擎的源码副本，仅供开发时查阅 API 和实现参考用。游戏代码不得放在该目录下。**
+
+### 3.3 碰撞与移动核心算法
+
+#### 3.3.1 逻辑移动规则
+
+- 玩家与敌人的移动以 tile 为单位，到达格中心后选择下一方向
+- 视觉表现允许平滑插值（但不影响碰撞判定）
+- 碰撞检测使用 tile 相邻判断，非 AABB
+
+#### 3.3.2 碰撞优先级
+
+```
+硬墙 > 炸弹实体 > 软墙 > 敌人/玩家
+```
+
+#### 3.3.3 炸弹放置
+
+- 玩家在当前 tile 中心放置炸弹
+- 炸弹占用该 tile，其他实体不可进入
+- 火焰传播：广度优先，从炸弹位置向四方向扩散，每方向持续直到遇到阻挡物
+
+#### 3.3.4 火焰传播算法
+
+```rust
+// 伪代码
+fn spread_flames(origin: TilePos, range: u32) {
+    for direction in [Up, Down, Left, Right] {
+        for distance in 1..=range {
+            let pos = origin + direction * distance;
+            match map[pos] {
+                HardWall | Bomb => break,  // 终止
+                SoftWall => { spawn_flame(pos); break; }  // 摧毁软墙
+                Empty | Player | Enemy => spawn_flame(pos);  // 继续
+            }
+        }
+    }
+}
+```
+
+### 3.4 依赖版本锁定策略
+
+```toml
+# Cargo.toml
+[dependencies]
+bevy = "0.17"
+bevy_ecs_tilemap = "0.15"  # 需验证与 Bevy 0.17 兼容
+ldtk = "0.16"
+
+[patch.crates-io]
+# 如有兼容性问题，可使用 patch 区域临时覆盖
+```
+
+策略：
+- 提交 `Cargo.lock` 到版本控制
+- Bevy 升级评估窗口：每个正式版发布后评估
+- 第三方 crate 独立验证兼容性后再升级
+
+### 3.5 测试框架
+
+```rust
+// src/core/tests.rs
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_flame_spread_stops_at_hard_wall() {
+        // 测试火焰遇到硬墙停止
+    }
+
+    #[test]
+    fn test_bomb_chain_explosion() {
+        // 测试连锁爆炸
+    }
+}
+```
+
+- 单元测试：`cargo test`
+- 集成测试：`tests/` 目录
+- ECS 系统测试：使用 `bevy_ecs` 测试辅助
+
+### 3.6 边界情况处理
+
+| 情况 | 处理方式 |
+|------|----------|
+| 炸弹数量超限 | 忽略放置请求，不报错 |
+| 多 Punisher 位置重叠 | 允许重叠，各自独立运行 |
+| 奖励关重复触发 | 已触发则忽略，直到重开 |
+| 玩家在火焰中心 | 立即死亡，无无敌帧 |
+| 火焰重叠 | 合并为一次火焰实体 |
 
 建议项目至少拆分为以下模块：
 
@@ -98,23 +215,55 @@
 
 目标：
 
-- 建立可运行的 Rust + Bevy 项目骨架
+- 在仓库根目录 `src/` 建立真正的游戏项目
 - 本地 Windows 构建成功
 - GitHub Actions 的 Windows 构建链打通
 
 任务：
 
-- 初始化 Cargo 项目与依赖
-- 配置基础 Bevy app、窗口、状态机、日志
-- 引入 tilemap、`LDtk` 关卡加载、侧边配置文件结构和资源目录结构
-- 建立 Windows CI 工作流
-- 生成第一个空白运行包并验证启动
+1. **创建 Rust 项目**
+   ```sh
+   cargo init --name blast-maze
+   ```
+
+2. **配置 Cargo.toml**
+   ```toml
+   [package]
+   name = "blast-maze"
+   version = "0.1.0"
+   edition = "2021"
+
+   [dependencies]
+   bevy = "0.17"
+   bevy_ecs_tilemap = "0.15"
+   ldtk = "0.16"
+   ```
+
+3. **建立目录结构**
+   ```sh
+   mkdir -p src/app src/core src/map src/player src/bomb
+   mkdir -p src/enemy src/pickup src/ui src/audio src/progression
+   mkdir -p assets/levels assets/sprites assets/audio assets/config
+   mkdir -p tests
+   ```
+
+4. **配置基础 Bevy app**
+   - 窗口、状态机、日志
+   - 最小可运行循环
+
+5. **建立 Windows CI 工作流**
+   - 创建 `.github/workflows/build.yml`
+   - 使用 `windows-latest` runner
+   - 构建 artifact 命名：`blast-maze-windows-v{version}.zip`
+
+6. **生成第一个空白运行包并验证启动**
 
 完成标准：
 
 - `cargo run` 能打开窗口
 - `cargo build --release` 能生成 Windows 二进制
 - CI 能产出可下载 artifact
+- 新开发者 `git clone && cargo run` 能正常启动
 
 ### 阶段 B：核心玩法闭环
 
@@ -223,14 +372,59 @@
 
 任务：
 
-- 整理资源目录
-- 生成版本号和变更说明
-- 验证无开发路径依赖
-- 输出 zip 包结构：
-  - `BlastMaze.exe`
-  - `assets/`
-  - `README` 或运行说明
-- 进行最终 smoke test
+1. **整理资源目录**
+   - 验证 `assets/` 无开发路径依赖
+   - 清理临时文件和调试资源
+
+2. **生成版本号**
+   ```sh
+   git tag -a v0.1.0 -m "MVP release"
+   ```
+
+3. **创建发布工作流 `.github/workflows/release.yml`**
+   ```yaml
+   name: Release Build
+   on:
+     push:
+       tags:
+         - 'v*'
+   jobs:
+     build:
+       runs-on: windows-latest
+       steps:
+         - uses: actions/checkout@v4
+         - uses: dtolnay/rust-toolchain@stable
+         - name: Build
+           run: cargo build --release
+         - name: Package
+           shell: bash
+           run: |
+             mkdir -p blast-maze-windows
+             cp target/release/blast-maze.exe blast-maze-windows/
+             cp -r assets blast-maze-windows/
+             zip -r blast-maze-windows-v${{ github.ref_name }}.zip blast-maze-windows
+         - uses: actions/upload-artifact@v4
+           with:
+             name: blast-maze-windows-${{ github.ref_name }}
+             path: blast-maze-windows-v*.zip
+   ```
+
+4. **输出 zip 包结构**
+   ```
+   blast-maze-windows/
+   ├── BlastMaze.exe
+   ├── assets/
+   │   ├── levels/
+   │   ├── sprites/
+   │   ├── audio/
+   │   └── config/
+   └── README.txt
+   ```
+
+5. **Smoke test**
+   - 解压到干净目录
+   - 运行 `BlastMaze.exe`
+   - 验证窗口打开、资源加载正常
 
 完成标准：
 
@@ -394,10 +588,13 @@
 
 ## 10. 下一步建议
 
+**重要提醒：`bevy-release-0.17.3/` 是 Bevy 引擎源码参考目录，游戏代码放在仓库根目录 `src/` 下，不要放在引擎参考目录中。**
+
 建议实际执行顺序为：
 
-1. 以 [tech-stack.md](/Users/tony/src/bomberman/memory-bank/tech-stack.md) 为基线初始化 Rust + Bevy + LDtk 工程
-2. 优先打通 Windows CI 与本地 Release 构建
-3. 用 `1` 张测试图和 `1` 份侧边配置验证核心闭环
-4. 固定前 `4` 个主线关与首个奖励关的数据编排
-5. 再扩展战术道具、秘密目标和完整战役内容
+1. 在仓库根目录初始化 Rust + Bevy + LDtk 工程（见阶段 A 步骤 1-3）
+2. 配置 `Cargo.toml` 依赖，参考 `bevy-release-0.17.3/` 中的 Bevy API
+3. 优先打通 Windows CI 与本地 Release 构建（阶段 A）
+4. 用 `1` 张测试图和 `1` 份侧边配置验证核心闭环（阶段 B）
+5. 固定前 `4` 个主线关与首个奖励关的数据编排（阶段 C-D）
+6. 再扩展战术道具、秘密目标和完整战役内容（阶段 E-F）
