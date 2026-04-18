@@ -1,0 +1,12 @@
+C:\src\bomberman\target\debug\deps\rangemap-59ccc289e4a1bae2.d: C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\lib.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\inclusive_map.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\inclusive_set.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\map.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\operations.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\set.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\range_wrapper.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\std_ext.rs
+
+C:\src\bomberman\target\debug\deps\librangemap-59ccc289e4a1bae2.rmeta: C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\lib.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\inclusive_map.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\inclusive_set.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\map.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\operations.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\set.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\range_wrapper.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\std_ext.rs
+
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\lib.rs:
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\inclusive_map.rs:
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\inclusive_set.rs:
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\map.rs:
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\operations.rs:
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\set.rs:
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\range_wrapper.rs:
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rangemap-1.7.1\src\std_ext.rs:

@@ -25,7 +25,7 @@ fn handle_global_input(
         match state.get() {
             AppState::InGame => next_state.set(AppState::Paused),
             AppState::Paused => next_state.set(AppState::InGame),
-            AppState::MainMenu => {}
+            AppState::MainMenu | AppState::GameOver | AppState::Victory => {}
         }
     }
 

@@ -1,0 +1,11 @@
+C:\src\bomberman\target\debug\deps\bevy_audio-b2a6df860bbd1881.d: C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\lib.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\audio.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\audio_output.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\audio_source.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\pitch.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\sinks.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\volume.rs
+
+C:\src\bomberman\target\debug\deps\libbevy_audio-b2a6df860bbd1881.rmeta: C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\lib.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\audio.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\audio_output.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\audio_source.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\pitch.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\sinks.rs C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\volume.rs
+
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\lib.rs:
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\audio.rs:
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\audio_output.rs:
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\audio_source.rs:
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\pitch.rs:
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\sinks.rs:
+C:\Users\tony\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_audio-0.17.3\src\volume.rs:
