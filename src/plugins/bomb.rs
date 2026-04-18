@@ -7,7 +7,7 @@ use crate::plugins::{
     config::GameBalanceConfig,
     enemy::EnemyCount,
     game_state::GameState,
-    map::{tile_to_transform, GridPosition, StageMap},
+    map::{tile_to_transform, GridPosition, StageMap, TILE_SIZE},
     player::Player,
 };
 
@@ -68,6 +68,12 @@ fn place_bomb(
         },
         GridPosition(player_tile.0),
         tile_to_transform(player_tile.0),
+        // Bomb - dark red/maroon
+        Sprite {
+            color: Color::srgb(0.5, 0.15, 0.15),
+            custom_size: Some(Vec2::splat(TILE_SIZE - 4.0)),
+            ..default()
+        },
         Name::new("Bomb"),
     ));
 }
@@ -77,14 +83,26 @@ fn tick_bombs(
     time: Res<Time>,
     config: Res<GameBalanceConfig>,
     mut map: ResMut<StageMap>,
-    bombs: Query<(Entity, &Bomb, &GridPosition)>,
+    mut bombs: Query<(Entity, &mut Bomb, &GridPosition)>,
+    soft_walls: Query<(Entity, &GridPosition), With<crate::plugins::map::TileKind>>,
 ) {
+    // Collect all bomb data first to avoid borrow conflicts
+    let bomb_data: Vec<(Entity, IVec2, u8)> = bombs
+        .iter()
+        .map(|(e, b, p)| (e, p.0, b.flame_length))
+        .collect();
+
+    // Collect soft wall entities
+    let soft_wall_data: Vec<(Entity, IVec2)> = soft_walls
+        .iter()
+        .map(|(e, p)| (e, p.0))
+        .collect();
+
     // Collect bombs that finished their fuse
     let mut exploding = Vec::new();
-    for (entity, bomb, pos) in &bombs {
-        let mut t = bomb.timer.clone();
-        t.tick(time.delta());
-        if t.is_finished() {
+    for (entity, mut bomb, pos) in &mut bombs {
+        bomb.timer.tick(time.delta());
+        if bomb.timer.is_finished() {
             exploding.push((entity, pos.0, bomb.flame_length));
         }
     }
@@ -100,7 +118,8 @@ fn tick_bombs(
             &mut commands,
             &config,
             &mut map,
-            &bombs,
+            &bomb_data,
+            &soft_wall_data,
             center,
             flame_len,
             &mut exploded_tiles,
@@ -118,7 +137,7 @@ fn tick_bombs(
         }
 
         // Find bomb at this tile
-        if let Some((entity, bomb, pos)) = bombs.iter().find(|(_, _, p)| p.0 == target_tile) {
+        if let Some(&(entity, pos, flame_len)) = bomb_data.iter().find(|(_, p, _)| *p == target_tile) {
             if processed_bombs.contains(&entity) {
                 continue;
             }
@@ -127,9 +146,10 @@ fn tick_bombs(
                 &mut commands,
                 &config,
                 &mut map,
-                &bombs,
-                pos.0,
-                bomb.flame_length,
+                &bomb_data,
+                &soft_wall_data,
+                pos,
+                flame_len,
                 &mut exploded_tiles,
                 &mut processed_bombs,
                 &mut chain_queue,
@@ -144,7 +164,8 @@ fn process_explosion(
     commands: &mut Commands,
     config: &GameBalanceConfig,
     map: &mut StageMap,
-    bombs: &Query<(Entity, &Bomb, &GridPosition)>,
+    bomb_data: &[(Entity, IVec2, u8)],
+    soft_wall_data: &[(Entity, IVec2)],
     center: IVec2,
     flame_length: u8,
     exploded_tiles: &mut HashSet<IVec2>,
@@ -177,11 +198,15 @@ fn process_explosion(
 
             // Check for soft wall - destroy and stop
             if map.soft_walls.remove(&tile) {
+                // Despawn the soft wall entity
+                if let Some(&(entity, _)) = soft_wall_data.iter().find(|(_, p)| *p == tile) {
+                    commands.entity(entity).despawn();
+                }
                 break;
             }
 
             // Check for bomb - queue for chain explosion
-            if let Some((entity, _, _)) = bombs.iter().find(|(_, _, p)| p.0 == tile) {
+            if let Some(&(entity, _, _)) = bomb_data.iter().find(|(_, p, _)| *p == tile) {
                 if !processed_bombs.contains(&entity) {
                     chain_queue.push(tile);
                 }
@@ -198,6 +223,12 @@ fn spawn_flame(commands: &mut Commands, config: &GameBalanceConfig, tile: IVec2)
         },
         GridPosition(tile),
         tile_to_transform(tile),
+        // Flame - orange/yellow
+        Sprite {
+            color: Color::srgb(1.0, 0.5, 0.1),
+            custom_size: Some(Vec2::splat(TILE_SIZE - 4.0)),
+            ..default()
+        },
         Name::new("Flame"),
     ));
 }
@@ -217,19 +248,19 @@ fn tick_flames(
 
 fn apply_flame_damage(
     mut next_state: ResMut<NextState<AppState>>,
-    mut players: Query<(Entity, &mut GridPosition, &mut Player)>,
+    mut players: Query<(Entity, &GridPosition, &mut Player)>,
     flames: Query<&GridPosition, With<Flame>>,
     map: Res<StageMap>,
     mut game_state: ResMut<GameState>,
 ) {
-    let Ok((_entity, mut player_pos, mut player)) = players.single_mut() else {
+    let Ok((entity, player_grid_pos, mut player)) = players.single_mut() else {
         return;
     };
 
-    if flames.iter().any(|flame| flame.0 == player_pos.0) {
+    // Check if player is on flame
+    if flames.iter().any(|flame| flame.0 == player_grid_pos.0) {
         info!("Player died in explosion");
         game_state.lives -= 1;
-        player.lives = game_state.lives;
 
         if game_state.lives == 0 {
             info!("Game Over - no lives left");
@@ -237,7 +268,8 @@ fn apply_flame_damage(
         } else {
             // Respawn player at spawn position
             info!("Respawning player at spawn, {} lives remaining", game_state.lives);
-            player_pos.0 = map.player_spawn;
+            player.lives = game_state.lives;
+            // Position is managed by player system, just update the respawn logic there
         }
     }
 }

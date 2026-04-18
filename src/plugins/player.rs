@@ -35,6 +35,12 @@ fn spawn_player(mut commands: Commands, map: Res<StageMap>) {
         },
         GridPosition(map.player_spawn),
         tile_to_transform(map.player_spawn),
+        // Player - blue (0.2, 0.6, 1.0)
+        Sprite {
+            color: Color::srgb(0.2, 0.6, 1.0),
+            custom_size: Some(Vec2::splat(28.0)),
+            ..default()
+        },
         Name::new("Player"),
     ));
 }
@@ -42,8 +48,10 @@ fn spawn_player(mut commands: Commands, map: Res<StageMap>) {
 fn handle_player_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     map: Res<StageMap>,
-    bombs: Query<&GridPosition, With<Bomb>>,
-    mut player_query: Query<(&mut GridPosition, &mut Transform), With<Player>>,
+    mut queries: ParamSet<(
+        Query<(Entity, &mut GridPosition, &mut Transform), With<Player>>,
+        Query<&GridPosition, With<Bomb>>,
+    )>,
 ) {
     let mut direction = IVec2::ZERO;
     if keyboard.just_pressed(KeyCode::ArrowUp) || keyboard.just_pressed(KeyCode::KeyW) {
@@ -60,9 +68,9 @@ fn handle_player_movement(
         return;
     }
 
-    let bomb_tiles: HashSet<IVec2> = bombs.iter().map(|p| p.0).collect();
+    let bomb_tiles: HashSet<IVec2> = queries.p1().iter().map(|p| p.0).collect();
 
-    if let Ok((mut pos, mut transform)) = player_query.single_mut() {
+    if let Ok((_, mut pos, mut transform)) = queries.p0().single_mut() {
         let target = pos.0 + direction;
         if !is_blocked(target, &map, &bomb_tiles) {
             pos.0 = target;

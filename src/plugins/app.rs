@@ -33,8 +33,8 @@ impl Plugin for AppPlugin {
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
 pub enum AppState {
-    #[default]
     MainMenu,
+    #[default]
     InGame,
     Paused,
     GameOver,

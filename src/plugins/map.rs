@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use bevy::prelude::*;
 
-pub const TILE_SIZE: f32 = 32.0;
+pub const TILE_SIZE: f32 = 55.0;
 
 pub struct MapPlugin;
 
@@ -25,7 +25,7 @@ pub struct StageMap {
 
 impl Default for StageMap {
     fn default() -> Self {
-        let width = 15;
+        let width = 21;
         let height = 13;
         let mut hard_walls = HashSet::new();
         let mut soft_walls = HashSet::new();
@@ -55,8 +55,8 @@ impl Default for StageMap {
                     continue;
                 }
 
-                // 简单模板式软墙分布
-                if (x + y) % 3 != 0 {
+                // 软墙分布 - 稀疏一些，约 1/3 概率
+                if (x + y) % 5 != 0 {
                     soft_walls.insert(pos);
                 }
             }
@@ -84,29 +84,64 @@ pub enum TileKind {
 }
 
 fn setup_stage_map(mut commands: Commands, map: Res<StageMap>) {
+    // Floor - dark background (0.15, 0.15, 0.2)
+    for y in 0..map.height {
+        for x in 0..map.width {
+            let tile = IVec2::new(x, y);
+            commands.spawn((
+                GridPosition(tile),
+                tile_to_transform(tile),
+                Sprite {
+                    color: Color::srgb(0.15, 0.15, 0.2),
+                    custom_size: Some(Vec2::splat(TILE_SIZE - 1.0)),
+                    ..default()
+                },
+                Name::new("Floor"),
+            ));
+        }
+    }
+
+    // Hard walls - dark gray (0.3, 0.3, 0.35)
     for tile in &map.hard_walls {
         commands.spawn((
             GridPosition(*tile),
             TileKind::HardWall,
             tile_to_transform(*tile),
+            Sprite {
+                color: Color::srgb(0.3, 0.3, 0.35),
+                custom_size: Some(Vec2::splat(TILE_SIZE - 2.0)),
+                ..default()
+            },
             Name::new("HardWall"),
         ));
     }
 
+    // Soft walls - light tan (0.85, 0.75, 0.55)
     for tile in &map.soft_walls {
         commands.spawn((
             GridPosition(*tile),
             TileKind::SoftWall,
             tile_to_transform(*tile),
+            Sprite {
+                color: Color::srgb(0.85, 0.75, 0.55),
+                custom_size: Some(Vec2::splat(TILE_SIZE - 2.0)),
+                ..default()
+            },
             Name::new("SoftWall"),
         ));
     }
 
+    // Exit - green (0.2, 0.8, 0.2)
     commands.spawn((
         GridPosition(map.exit_tile),
         TileKind::Exit,
         tile_to_transform(map.exit_tile),
-        Name::new("HiddenExit"),
+        Sprite {
+            color: Color::srgb(0.2, 0.8, 0.2),
+            custom_size: Some(Vec2::splat(TILE_SIZE - 2.0)),
+            ..default()
+        },
+        Name::new("Exit"),
     ));
 }
 

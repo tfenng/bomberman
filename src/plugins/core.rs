@@ -13,7 +13,12 @@ impl Plugin for CorePlugin {
 }
 
 fn setup_camera(mut commands: Commands) {
-    commands.spawn((Camera2d, Name::new("MainCamera")));
+    // Map is 21x13 tiles at 55px = 1155x715 pixels, center at (577.5, 357.5)
+    commands.spawn((
+        Camera2d,
+        Transform::from_xyz(577.5, 357.5, 0.0),
+        Name::new("MainCamera"),
+    ));
 }
 
 fn handle_global_input(
