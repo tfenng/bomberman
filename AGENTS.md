@@ -1,90 +1,30 @@
-# AGENTS.md
+# Repository Guidelines
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+## Project Structure & Module Organization
 
-## Project Overview
+The root crate is `blast_maze`, a Bevy-based Bomberman-style game. Primary gameplay code lives in `src/`: `main.rs` boots the app, and `src/plugins/` contains feature-focused plugins such as `map.rs`, `player.rs`, `bomb.rs`, and `enemy.rs`. Runtime data lives in `assets/`; keep balance values in `assets/config/gameplay.json` and place LDtk level files in `assets/levels/` where the startup flow currently expects `stage_1.ldtk`. Design notes and planning live in `docs/` and `memory-bank/`. Treat `bevy-release-0.17.3/` as a vendored reference copy of Bevy, not the main application code.
 
-This is the **Bevy game engine** repository (v0.17.3). The actual engine code lives in the `bevy-release-0.17.3/` subdirectory. This is the engine itself, not a game project built with Bevy.
+## Build, Test, and Development Commands
 
-## Build Commands
+Run commands from the repository root:
 
-All commands should be run from the `bevy-release-0.17.3/` subdirectory.
+- `cargo run`: start the game locally.
+- `cargo build --release`: produce an optimized build.
+- `cargo test`: run unit and integration tests.
+- `cargo check`: fast compile validation during iteration.
+- `cargo clippy --all-targets --all-features`: lint gameplay and support code.
+- `cargo fmt --check`: verify formatting before opening a PR.
 
-```sh
-cd bevy-release-0.17.3
+The existing GitHub Actions workflow builds a Windows release target, so changes should continue to compile cleanly for `x86_64-pc-windows-msvc`.
 
-# Run an example
-cargo run --example breakout
+## Coding Style & Naming Conventions
 
-# Run all tests (except doc tests)
-cargo run -p ci -- test
+Follow standard Rust style: 4-space indentation, `snake_case` for functions/modules/files, `CamelCase` for types and plugins, and small, focused modules under `src/plugins/`. Prefer deriving traits (`Debug`, `Resource`, `States`) over manual boilerplate when practical. Use `cargo fmt` for formatting and fix Clippy warnings instead of suppressing them without a code-level reason.
 
-# Run lints (format + clippy)
-cargo run -p ci -- lints
+## Testing Guidelines
 
-# Run a single test
-cargo test -p <crate> --lib -- <test_name>
+There is no dedicated `tests/` directory yet, so add focused unit tests next to the affected module or create integration tests under `tests/` when cross-plugin behavior matters. Name tests after the behavior they verify, for example `bombs_expire_after_fuse`. Run `cargo test` before submitting, and pair gameplay logic changes with at least one test when the behavior can be exercised without a full graphical session.
 
-# Run clippy on a specific crate
-cargo clippy -p <crate>
+## Commit & Pull Request Guidelines
 
-# Format check
-cargo fmt --check
-```
-
-For faster iterative builds, copy the fast-build config:
-```sh
-cp .cargo/config_fast_builds.toml .cargo/config.toml
-```
-
-## Architecture
-
-Bevy is built on an **Entity Component System (ECS)** paradigm. Key concepts:
-
-- **Entities**: Unique IDs that hold Components
-- **Components**: Plain Rust structs stored in a `World`
-- **Systems**: Functions that process entity data via `Query`
-- **Resources**: Singleton data (like `Time`, `AssetServer`)
-- **Schedules**: Define execution order of Systems
-
-### Core Crates
-
-| Crate | Purpose |
-|-------|---------|
-| `bevy_ecs` | Core ECS implementation (World, Entity, Query, System) |
-| `bevy_app` | Application layer (App, Plugin, Schedule) |
-| `bevy_asset` | Asset loading and management |
-| `bevy_render` | Rendering pipeline (camera, mesh, material) |
-| `bevy_input` | Input handling (keyboard, mouse, gamepad) |
-| `bevy_transform` | Transform/position hierarchy |
-| `bevy_ui` | UI layout and rendering |
-| `bevy_state` | State machine support |
-| `bevy_reflect` | Dynamic type reflection |
-| `bevy_pbr` | Physically-based rendering |
-| `bevy_sprite` | 2D sprite rendering |
-| `bevy_animation` | Skeletal animation |
-| `bevy_gltf` | glTF model loading |
-| `bevy_scene` | Scene serialization/deserialization |
-
-### Render Architecture
-
-The render pipeline uses:
-1. `bevy_render` - core render graph
-2. `bevy_core_pipeline` - built-in render passes (forward, deferred, post-processing)
-3. `bevy_pbr` - PBR materials and lighting
-4. `bevy_sprite_render` - 2D sprite batching
-5. `bevy_ui_render` - UI rendering
-
-### Key File Patterns
-
-- `crates/*/src/lib.rs` - crate entry point, re-exports public API via `mod` hierarchy
-- `crates/*/src/*.rs` - feature-gated modules
-- `examples/**/*.rs` - runnable examples organized by category
-- `tools/ci/src/commands/*.rs` - CI command definitions
-
-## Important Notes
-
-- **MSRV**: Bevy MSRV is close to "latest stable Rust" due to heavy use of modern Rust features
-- **Edition 2024**: This version uses Rust edition 2024
-- **Unsafe Code**: The codebase has `unsafe_code = deny` in lints; any unsafe code requires careful review
-- **Compile-time Validation**: Error codes (in `errors/`) are validated at compile-time to ensure documentation stays in sync
+Recent history uses short Conventional Commit prefixes such as `feat:`, `fix:`, `docs:`, and `chore:`. Keep that format and write concise, imperative summaries. Pull requests should explain the gameplay or tooling change, note any asset/config updates, link the relevant issue when available, and include screenshots or a short clip for visible gameplay changes.
