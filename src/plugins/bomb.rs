@@ -4,10 +4,11 @@ use bevy::prelude::*;
 
 use crate::plugins::{
     app::AppState,
+    assets::{sprite_with_size, SpriteAssets},
     config::GameBalanceConfig,
-    enemy::EnemyCount,
-    game_state::GameState,
-    map::{tile_to_transform, GridPosition, StageMap, TILE_SIZE},
+    enemy::{Enemy, EnemyCount},
+    game_state::{GameState, LevelResetRequest},
+    map::{tile_to_transform_z, BOMB_Z, FLAME_Z, GridPosition, StageMap, TILE_SIZE},
     player::Player,
 };
 
@@ -40,6 +41,7 @@ pub struct Flame {
 fn place_bomb(
     mut commands: Commands,
     keyboard: Res<ButtonInput<KeyCode>>,
+    assets: Res<SpriteAssets>,
     config: Res<GameBalanceConfig>,
     players: Query<(&GridPosition, &Player)>,
     bombs: Query<&GridPosition, With<Bomb>>,
@@ -67,19 +69,15 @@ fn place_bomb(
             flame_length: player.flame_length,
         },
         GridPosition(player_tile.0),
-        tile_to_transform(player_tile.0),
-        // Bomb - dark red/maroon
-        Sprite {
-            color: Color::srgb(0.5, 0.15, 0.15),
-            custom_size: Some(Vec2::splat(TILE_SIZE - 4.0)),
-            ..default()
-        },
+        tile_to_transform_z(player_tile.0, BOMB_Z),
+        sprite_with_size(assets.bomb_texture(), TILE_SIZE - 4.0),
         Name::new("Bomb"),
     ));
 }
 
 fn tick_bombs(
     mut commands: Commands,
+    assets: Res<SpriteAssets>,
     time: Res<Time>,
     config: Res<GameBalanceConfig>,
     mut map: ResMut<StageMap>,
@@ -93,10 +91,7 @@ fn tick_bombs(
         .collect();
 
     // Collect soft wall entities
-    let soft_wall_data: Vec<(Entity, IVec2)> = soft_walls
-        .iter()
-        .map(|(e, p)| (e, p.0))
-        .collect();
+    let soft_wall_data: Vec<(Entity, IVec2)> = soft_walls.iter().map(|(e, p)| (e, p.0)).collect();
 
     // Collect bombs that finished their fuse
     let mut exploding = Vec::new();
@@ -116,6 +111,7 @@ fn tick_bombs(
     for (entity, center, flame_len) in exploding {
         process_explosion(
             &mut commands,
+            &assets,
             &config,
             &mut map,
             &bomb_data,
@@ -137,13 +133,16 @@ fn tick_bombs(
         }
 
         // Find bomb at this tile
-        if let Some(&(entity, pos, flame_len)) = bomb_data.iter().find(|(_, p, _)| *p == target_tile) {
+        if let Some(&(entity, pos, flame_len)) =
+            bomb_data.iter().find(|(_, p, _)| *p == target_tile)
+        {
             if processed_bombs.contains(&entity) {
                 continue;
             }
 
             process_explosion(
                 &mut commands,
+                &assets,
                 &config,
                 &mut map,
                 &bomb_data,
@@ -162,6 +161,7 @@ fn tick_bombs(
 
 fn process_explosion(
     commands: &mut Commands,
+    assets: &SpriteAssets,
     config: &GameBalanceConfig,
     map: &mut StageMap,
     bomb_data: &[(Entity, IVec2, u8)],
@@ -175,7 +175,7 @@ fn process_explosion(
     let directions = [IVec2::X, IVec2::NEG_X, IVec2::Y, IVec2::NEG_Y];
 
     // Spawn center flame
-    spawn_flame(commands, config, center);
+    spawn_flame(commands, assets, config, center);
     exploded_tiles.insert(center);
 
     for dir in directions {
@@ -188,7 +188,7 @@ fn process_explosion(
             }
 
             // Spawn flame at this tile
-            spawn_flame(commands, config, tile);
+            spawn_flame(commands, assets, config, tile);
 
             // Check for already exploded tile
             if exploded_tiles.contains(&tile) {
@@ -216,28 +216,24 @@ fn process_explosion(
     }
 }
 
-fn spawn_flame(commands: &mut Commands, config: &GameBalanceConfig, tile: IVec2) {
+fn spawn_flame(
+    commands: &mut Commands,
+    assets: &SpriteAssets,
+    config: &GameBalanceConfig,
+    tile: IVec2,
+) {
     commands.spawn((
         Flame {
             timer: Timer::from_seconds(config.flame_duration_seconds, TimerMode::Once),
         },
         GridPosition(tile),
-        tile_to_transform(tile),
-        // Flame - orange/yellow
-        Sprite {
-            color: Color::srgb(1.0, 0.5, 0.1),
-            custom_size: Some(Vec2::splat(TILE_SIZE - 4.0)),
-            ..default()
-        },
+        tile_to_transform_z(tile, FLAME_Z),
+        sprite_with_size(assets.flame_texture(), TILE_SIZE - 4.0),
         Name::new("Flame"),
     ));
 }
 
-fn tick_flames(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut flames: Query<(Entity, &mut Flame)>,
-) {
+fn tick_flames(mut commands: Commands, time: Res<Time>, mut flames: Query<(Entity, &mut Flame)>) {
     for (entity, mut flame) in &mut flames {
         flame.timer.tick(time.delta());
         if flame.timer.is_finished() {
@@ -248,12 +244,15 @@ fn tick_flames(
 
 fn apply_flame_damage(
     mut next_state: ResMut<NextState<AppState>>,
-    mut players: Query<(Entity, &GridPosition, &mut Player)>,
+    mut level_reset_request: ResMut<LevelResetRequest>,
+    mut players: Query<(&GridPosition, &mut Player)>,
     flames: Query<&GridPosition, With<Flame>>,
-    map: Res<StageMap>,
     mut game_state: ResMut<GameState>,
+    mut enemy_count: ResMut<EnemyCount>,
+    mut commands: Commands,
+    enemies: Query<(Entity, &GridPosition), With<Enemy>>,
 ) {
-    let Ok((entity, player_grid_pos, mut player)) = players.single_mut() else {
+    let Ok((player_grid_pos, mut player)) = players.single_mut() else {
         return;
     };
 
@@ -261,22 +260,35 @@ fn apply_flame_damage(
     if flames.iter().any(|flame| flame.0 == player_grid_pos.0) {
         info!("Player died in explosion");
         game_state.lives -= 1;
+        player.lives = game_state.lives;
 
         if game_state.lives == 0 {
             info!("Game Over - no lives left");
+            level_reset_request.pending = false;
             next_state.set(AppState::GameOver);
         } else {
-            // Respawn player at spawn position
-            info!("Respawning player at spawn, {} lives remaining", game_state.lives);
-            player.lives = game_state.lives;
-            // Position is managed by player system, just update the respawn logic there
+            info!("Respawning level, {} lives remaining", game_state.lives);
+            level_reset_request.pending = true;
         }
+    }
+
+    let mut enemy_entities_to_remove = Vec::new();
+    for (entity, enemy_tile) in &enemies {
+        if flames.iter().any(|flame| flame.0 == enemy_tile.0) {
+            enemy_entities_to_remove.push(entity);
+        }
+    }
+
+    for entity in enemy_entities_to_remove {
+        commands.entity(entity).despawn();
+        enemy_count.count = enemy_count.count.saturating_sub(1);
     }
 }
 
 fn check_exit(
     mut next_state: ResMut<NextState<AppState>>,
     mut game_state: ResMut<GameState>,
+    mut level_reset_request: ResMut<LevelResetRequest>,
     players: Query<&GridPosition, With<Player>>,
     enemy_count: Res<EnemyCount>,
     map: Res<StageMap>,
@@ -296,13 +308,11 @@ fn check_exit(
 
         if game_state.current_level > game_state.total_levels {
             info!("All levels complete - Victory!");
+            level_reset_request.pending = false;
             next_state.set(AppState::Victory);
         } else {
             info!("Advancing to level {}", game_state.current_level);
-            // Transition back to InGame for next level
-            // The GameStatePlugin will handle cleanup and reset
-            next_state.set(AppState::MainMenu);
-            // Then player presses Enter to continue
+            level_reset_request.pending = true;
         }
     }
 }

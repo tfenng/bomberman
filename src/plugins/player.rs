@@ -4,18 +4,21 @@ use bevy::prelude::*;
 
 use crate::plugins::{
     app::AppState,
+    assets::{sprite_with_size, SpriteAssets},
     bomb::Bomb,
-    map::{is_blocked, tile_to_transform, GridPosition, StageMap},
+    map::{is_blocked, tile_to_transform_z, ACTOR_Z, GridPosition, StageMap, TILE_SIZE},
 };
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_player).add_systems(
-            Update,
-            handle_player_movement.run_if(in_state(AppState::InGame)),
-        );
+        app.add_systems(Startup, spawn_player)
+            .add_systems(OnEnter(AppState::InGame), ensure_player_exists)
+            .add_systems(
+                Update,
+                handle_player_movement.run_if(in_state(AppState::InGame)),
+            );
     }
 }
 
@@ -26,7 +29,11 @@ pub struct Player {
     pub lives: u8,
 }
 
-fn spawn_player(mut commands: Commands, map: Res<StageMap>) {
+fn spawn_player(mut commands: Commands, map: Res<StageMap>, assets: Res<SpriteAssets>) {
+    spawn_player_entity(&mut commands, &map, &assets);
+}
+
+pub fn spawn_player_entity(commands: &mut Commands, map: &StageMap, assets: &SpriteAssets) {
     commands.spawn((
         Player {
             bomb_capacity: 1,
@@ -34,15 +41,21 @@ fn spawn_player(mut commands: Commands, map: Res<StageMap>) {
             lives: 3,
         },
         GridPosition(map.player_spawn),
-        tile_to_transform(map.player_spawn),
-        // Player - blue (0.2, 0.6, 1.0)
-        Sprite {
-            color: Color::srgb(0.2, 0.6, 1.0),
-            custom_size: Some(Vec2::splat(28.0)),
-            ..default()
-        },
+        tile_to_transform_z(map.player_spawn, ACTOR_Z),
+        sprite_with_size(assets.player_texture(), TILE_SIZE * 0.75),
         Name::new("Player"),
     ));
+}
+
+fn ensure_player_exists(
+    mut commands: Commands,
+    map: Res<StageMap>,
+    assets: Res<SpriteAssets>,
+    players: Query<(), With<Player>>,
+) {
+    if players.is_empty() {
+        spawn_player_entity(&mut commands, &map, &assets);
+    }
 }
 
 fn handle_player_movement(
@@ -74,7 +87,7 @@ fn handle_player_movement(
         let target = pos.0 + direction;
         if !is_blocked(target, &map, &bomb_tiles) {
             pos.0 = target;
-            *transform = tile_to_transform(target);
+            *transform = tile_to_transform_z(target, ACTOR_Z);
         }
     }
 }

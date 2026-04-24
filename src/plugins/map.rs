@@ -2,14 +2,27 @@ use std::collections::HashSet;
 
 use bevy::prelude::*;
 
-pub const TILE_SIZE: f32 = 55.0;
+use crate::plugins::{
+    app::AppState,
+    assets::{sprite_with_size, SpriteAssets},
+};
+
+pub const MAP_WIDTH: i32 = 21;
+pub const MAP_HEIGHT: i32 = 17;
+pub const TILE_SIZE: f32 = 64.0;
+pub const FLOOR_Z: f32 = 0.0;
+pub const TILE_Z: f32 = 1.0;
+pub const ACTOR_Z: f32 = 10.0;
+pub const BOMB_Z: f32 = 15.0;
+pub const FLAME_Z: f32 = 20.0;
 
 pub struct MapPlugin;
 
 impl Plugin for MapPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<StageMap>()
-            .add_systems(Startup, setup_stage_map);
+            .add_systems(Startup, setup_stage_map)
+            .add_systems(OnEnter(AppState::InGame), ensure_stage_map_exists);
     }
 }
 
@@ -19,14 +32,15 @@ pub struct StageMap {
     pub height: i32,
     pub hard_walls: HashSet<IVec2>,
     pub soft_walls: HashSet<IVec2>,
+    pub initial_soft_walls: HashSet<IVec2>,
     pub exit_tile: IVec2,
     pub player_spawn: IVec2,
 }
 
 impl Default for StageMap {
     fn default() -> Self {
-        let width = 21;
-        let height = 13;
+        let width = MAP_WIDTH;
+        let height = MAP_HEIGHT;
         let mut hard_walls = HashSet::new();
         let mut soft_walls = HashSet::new();
 
@@ -66,6 +80,7 @@ impl Default for StageMap {
             width,
             height,
             hard_walls,
+            initial_soft_walls: soft_walls.clone(),
             soft_walls,
             exit_tile: IVec2::new(width - 2, height - 2),
             player_spawn: IVec2::new(1, 1),
@@ -76,6 +91,9 @@ impl Default for StageMap {
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GridPosition(pub IVec2);
 
+#[derive(Component, Debug, Clone, Copy)]
+pub struct StageTile;
+
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TileKind {
     HardWall,
@@ -83,14 +101,30 @@ pub enum TileKind {
     Exit,
 }
 
-fn setup_stage_map(mut commands: Commands, map: Res<StageMap>) {
+fn setup_stage_map(mut commands: Commands, map: Res<StageMap>, assets: Res<SpriteAssets>) {
+    spawn_stage_map(&mut commands, &map, &assets);
+}
+
+fn ensure_stage_map_exists(
+    mut commands: Commands,
+    map: Res<StageMap>,
+    assets: Res<SpriteAssets>,
+    stage_tiles: Query<(), With<StageTile>>,
+) {
+    if stage_tiles.is_empty() {
+        spawn_stage_map(&mut commands, &map, &assets);
+    }
+}
+
+pub fn spawn_stage_map(commands: &mut Commands, map: &StageMap, assets: &SpriteAssets) {
     // Floor - dark background (0.15, 0.15, 0.2)
     for y in 0..map.height {
         for x in 0..map.width {
             let tile = IVec2::new(x, y);
             commands.spawn((
+                StageTile,
                 GridPosition(tile),
-                tile_to_transform(tile),
+                tile_to_transform_z(tile, FLOOR_Z),
                 Sprite {
                     color: Color::srgb(0.15, 0.15, 0.2),
                     custom_size: Some(Vec2::splat(TILE_SIZE - 1.0)),
@@ -104,14 +138,11 @@ fn setup_stage_map(mut commands: Commands, map: Res<StageMap>) {
     // Hard walls - dark gray (0.3, 0.3, 0.35)
     for tile in &map.hard_walls {
         commands.spawn((
+            StageTile,
             GridPosition(*tile),
             TileKind::HardWall,
-            tile_to_transform(*tile),
-            Sprite {
-                color: Color::srgb(0.3, 0.3, 0.35),
-                custom_size: Some(Vec2::splat(TILE_SIZE - 2.0)),
-                ..default()
-            },
+            tile_to_transform_z(*tile, TILE_Z),
+            sprite_with_size(assets.tile_texture(TileKind::HardWall), TILE_SIZE - 2.0),
             Name::new("HardWall"),
         ));
     }
@@ -119,36 +150,49 @@ fn setup_stage_map(mut commands: Commands, map: Res<StageMap>) {
     // Soft walls - light tan (0.85, 0.75, 0.55)
     for tile in &map.soft_walls {
         commands.spawn((
+            StageTile,
             GridPosition(*tile),
             TileKind::SoftWall,
-            tile_to_transform(*tile),
-            Sprite {
-                color: Color::srgb(0.85, 0.75, 0.55),
-                custom_size: Some(Vec2::splat(TILE_SIZE - 2.0)),
-                ..default()
-            },
+            tile_to_transform_z(*tile, TILE_Z),
+            sprite_with_size(assets.tile_texture(TileKind::SoftWall), TILE_SIZE - 2.0),
             Name::new("SoftWall"),
         ));
     }
 
     // Exit - green (0.2, 0.8, 0.2)
     commands.spawn((
+        StageTile,
         GridPosition(map.exit_tile),
         TileKind::Exit,
-        tile_to_transform(map.exit_tile),
-        Sprite {
-            color: Color::srgb(0.2, 0.8, 0.2),
-            custom_size: Some(Vec2::splat(TILE_SIZE - 2.0)),
-            ..default()
-        },
+        tile_to_transform_z(map.exit_tile, TILE_Z),
+        sprite_with_size(assets.tile_texture(TileKind::Exit), TILE_SIZE - 2.0),
         Name::new("Exit"),
     ));
 }
 
 pub fn tile_to_transform(tile: IVec2) -> Transform {
-    Transform::from_xyz(tile.x as f32 * TILE_SIZE, tile.y as f32 * TILE_SIZE, 0.0)
+    let centered_x = (tile.x as f32 - (MAP_WIDTH - 1) as f32 / 2.0) * TILE_SIZE;
+    let centered_y = (tile.y as f32 - (MAP_HEIGHT - 1) as f32 / 2.0) * TILE_SIZE;
+
+    Transform::from_xyz(centered_x, centered_y, 0.0)
+}
+
+pub fn tile_to_transform_z(tile: IVec2, z: f32) -> Transform {
+    let mut transform = tile_to_transform(tile);
+    transform.translation.z = z;
+    transform
+}
+
+pub fn map_world_size() -> Vec2 {
+    Vec2::new(MAP_WIDTH as f32 * TILE_SIZE, MAP_HEIGHT as f32 * TILE_SIZE)
 }
 
 pub fn is_blocked(tile: IVec2, map: &StageMap, bomb_tiles: &HashSet<IVec2>) -> bool {
     map.hard_walls.contains(&tile) || map.soft_walls.contains(&tile) || bomb_tiles.contains(&tile)
+}
+
+impl StageMap {
+    pub fn restore_layout(&mut self) {
+        self.soft_walls = self.initial_soft_walls.clone();
+    }
 }
